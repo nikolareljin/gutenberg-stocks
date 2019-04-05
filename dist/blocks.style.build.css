@@ -9,7 +9,7 @@
  *
  * CSS for both Frontend+Backend.
  */
-.wp-block-dj-block-stock-information {
+.wp-block-dj-stock-information, .wp-block-dj-block-stock-information {
   color: #292929;
   margin: 0 auto;
   max-width: 740px;

@@ -1,5 +1,6 @@
 import { csvParse, tsvParse } from 'd3-dsv';
 import { timeParse } from 'd3-time-format';
+import ChartComponent from './ChartComponent';
 
 let config_data = JSON.stringify(stockinfo_config);
 let config_content = JSON.parse(config_data);
@@ -53,27 +54,50 @@ export function getData (symbol) {
   // const interval = '&interval=30min';
   const interval = '';
 
-  const encodedSymbol = encodeURIComponent(symbol);
+  const encodedSymbol = encodeURIComponent(symbol).replace(/\./g, '%2E');
 
   let url = `${host}/${entrypoint}?function=${type}&symbol=${encodedSymbol}&apikey=${apiKey}&datatype=csv${interval}`;
+
+  // const encodedUrl = encodeURI(url).replace(/\./g, '%2E');
   console.log(url);
 
-  const promiseStock = fetch(url,
-    {
-      crossDomain: true,
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
+  let promiseStock = null;
+  let promiseData = null;
+  let result = null;
+
+  const api_limit = 'Our standard API call frequency is 5 calls per minute and 500 calls per day.';
+
+  try {
+    promiseStock = fetch(url,
+      {
+        crossDomain: true,
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      }
+    )
+      .then(response => response.text());
+
+    promiseData = promiseStock.then(x => (x.toString().includes(api_limit))? null : x );
+
+    if(null != promiseData) {
+      result = promiseStock.then(data => csvParse(data, parseData(parseDate)))
+        .then(result => result.reverse());
     }
-  )
-    .then(response => response.text())
-    .then(data => csvParse(data, parseData(parseDate)))
-    .then( result => result.reverse() );
+  }
+  catch(ex){
+    console.log("Error using API.");
+    return null;
+  }
 
-  if(promiseStock[1])
+  if(promiseStock.status == 'pending'){
+    console.log("Error using API.");
+    return null;
+  }
 
-  console.log(promiseStock);
 
-  return promiseStock;
+  console.log(result);
+
+  return result;
 }
 
 
@@ -107,13 +131,36 @@ export const getParsedData = (data) => {
   return {};
 };
 
+const regex = /stocks-info symbol=(.*)/g;
+let matches;
+
+const getSymbolValue = (text) => {
+  let matches = regex.exec(text);
+  return matches[1];
+};
+
 /**
  * getShortcode
  * @param {*} text
  */
-export const getShortcode = (text) => (
+export const getShortcode = (text) => {
+  // matches = regex.exec(text)
+  // //
+  // // // let matches = text.match(/stocks-info symbol=(.*)"/i);
+  // console.log(matches);
+  // let symbol = matches[1];
+  // symbol = symbol.replace('"','');
+  // symbol = symbol.replace(']','');
+
+  // wp.element.createElement(
+  //   <div>
+  //     {symbol}
+  //     <ChartComponent apiKey={symbol} symbol={symbol} data={getData(symbol)}/>
+  //   </div>
+  // );
+
   wp.element.createElement(
     'wp-raw-html',
     { dangerouslySetInnerHTML: { __html: text } }
-  )
-);
+  );
+};

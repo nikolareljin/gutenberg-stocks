@@ -69,12 +69,60 @@ function stock_information_dj_editor_assets() { // phpcs:ignore
 }
 
 // Hook: Editor assets.
-add_action( 'enqueue_block_editor_assets', 'stock_information_dj_editor_assets' );
+//add_action( 'enqueue_block_editor_assets', 'stock_information_dj_editor_assets' );
 
 
+/**
+ * View methods (frontend).
+ */
+function stock_information_dj_view_assets(){
+	$js_handler = 'stock_information-dj-view-js';
+
+	// Scripts.
+	wp_enqueue_script(
+		$js_handler, // Handle.
+		plugins_url( '/dist/blocks.build.js', dirname( __FILE__ ) ), // Block.build.js: We register the block here. Built with Webpack.
+		array( 'wp-blocks', 'wp-element', 'react', 'react-dom' , 'wp-i18n', 'wp-editor' ), // Dependencies, defined above.
+		// filemtime( plugin_dir_path( __DIR__ ) . 'dist/blocks.build.js' ), // Version: File modification time.
+		true // Enqueue the script in the footer.
+	);
+
+	$stockinfo_config = get_option( \StockInfo\StockInfo_Settings_Constants::API_OPTIONS );
+	$params = [
+		'host'       => $stockinfo_config[\StockInfo\StockInfo_Settings_Constants::META_API__ID__HOST],
+		'entrypoint' => $stockinfo_config[\StockInfo\StockInfo_Settings_Constants::META_API__ID__ENTRYPOINT],
+		'token'       => $stockinfo_config[\StockInfo\StockInfo_Settings_Constants::META_API__ID__TOKEN],
+		'stroke_color' => $stockinfo_config[\StockInfo\StockInfo_Settings_Constants::META_API__ID__COLOR]
+	];
+	wp_localize_script( $js_handler, 'stockinfo_config', $params );
+
+	// Styles.
+	wp_enqueue_style(
+		'stock_information-dj-block-editor-css', // Handle.
+		plugins_url( 'dist/blocks.style.build.css', dirname( __FILE__ ) ), // Block editor CSS.
+		array( 'wp-edit-blocks' ) // Dependency to include the CSS after it.
+	// filemtime( plugin_dir_path( __DIR__ ) . 'dist/blocks.editor.build.css' ) // Version: File modification time.
+	);
+}
+
+// Hook: Front assets.
+add_action( 'enqueue_block_assets', 'stock_information_dj_view_assets' );
+
+
+/**
+ * Init method.
+ */
 function stockinfo_block_cgb_init() {
 
 	$js_handler = 'stock_information-dj-block-js';
+
+	// Register block styles for both frontend + backend.
+	wp_register_style(
+		'stock_information-style-css', // Handle.
+		plugins_url( 'dist/blocks.style.build.css', dirname( __FILE__ ) ), // Block style CSS.
+		array( 'wp-editor' ), // Dependency to include the CSS after it.
+		null // filemtime( plugin_dir_path( __DIR__ ) . 'dist/blocks.style.build.css' ) // Version: File modification time.
+	);
 
 	// Scripts.
 	wp_register_script(
@@ -88,7 +136,8 @@ function stockinfo_block_cgb_init() {
 			'wp-data',
 			'wp-element',
 			'wp-i18n',
-			'wp-edit-post',
+			'wp-edit-post', // default - before wp-edit-blocks
+//			'wp-edit-blocks'
 		), // Dependencies, defined above.
 		filemtime( plugin_dir_path( __DIR__ ) . 'dist/blocks.build.js' ), // Version: filemtime — Gets file modification time.
 		true // Enqueue the script in the footer.
@@ -99,7 +148,16 @@ function stockinfo_block_cgb_init() {
 	wp_register_style(
 		'stock_information-dj-block-editor-css', // Handle.
 		plugins_url( 'dist/blocks.editor.build.css', dirname( __FILE__ ) ), // Block editor CSS.
-		array( 'wp-edit-blocks' ) // Dependency to include the CSS after it.
+		array(
+//			'jquery',
+//			'wp-blocks',
+//			'wp-components',
+//			'wp-compose',
+//			'wp-data',
+//			'wp-element',
+//			'wp-i18n',
+//			'wp-edit-post', // default - only wp-edit-blocks
+			'wp-edit-blocks' ) // Dependency to include the CSS after it.
 		, filemtime( plugin_dir_path( __DIR__ ) . 'dist/blocks.editor.build.css' ) // Version: filemtime — Gets file modification time.
 	);
 

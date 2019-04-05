@@ -5,27 +5,21 @@
  *
  * Define Stocks block edit
  */
-// import { Fragment } from '@wordpress/element';
-// import { createHooks } from '@wordpress/hooks';
-// import { __ } from '@wordpress/i18n';
-// import { RichText } from '@wordpress/editor';
-// import { Tooltip } from '@wordpress/components';
-
 import classnames from 'classnames';
 import PropTypes from 'prop-types';
 import ChartComponent from './ChartComponent';
 
 const { __, setLocaleData } = wp.i18n; // Import __() from wp.i18n
-const { registerBlockType } = wp.blocks; // Import registerBlockType() from wp.blocks
+const { registerBlockType, InspectorControls } = wp.blocks; // Import registerBlockType() from wp.blocks
 const {
   RichText,
 } = wp.editor;
 const { Fragment } = wp.element;
 const {
-  InnerBlocks,
+  InnerBlocks
 } = wp.editor;
 const {
-  Tooltip
+  Tooltip, PanelBody
 } = wp.components;
 
 /**
@@ -103,13 +97,9 @@ const appendCompleter = (completers, blockNameEl) => {
   if(completer) {
     if (blockNameSpace === blockNameEl) {
       value = completers.concat(completer);
-
-      // stock_symbol = completer;
       // Update the source, add symbol.
-      // changedSymbol = true;
     } else {
       value = completers;
-      // changedSymbol = false;
     }
   }
   return value;
@@ -149,11 +139,21 @@ const stocksEdit = (props) => {
     );
   };
 
+  /**
+   * Inspector controls on the right side.
+   */
+  const inspectorControls = (
+    <InspectorControls key="stocksInspector">
+      <PanelBody title={__('Front End Settings', langDomain)}>
+        <p>To start entering new Stock Index, please type $ into the prompt field.</p>
+      </PanelBody>
+    </InspectorControls>
+  );
+
   const onChangeMessage = (x) => {
     symbol_val = x;
 
     if (undefined != symbol_val) {
-      // symbol_val = symbol_val.replace('$', '');
       symbol_val = symbol_val.replace('<p>', '');
       symbol_val = symbol_val.replace('</p>', '');
       symbol_val = symbol_val.replace('<br>', '');
@@ -167,9 +167,6 @@ const stocksEdit = (props) => {
     setAttributes({ symbol: symbol_val });
   };
 
-  console.log('Symbol Val');
-  console.log(symbol_val);
-
   if (undefined != symbol_val && !symbol_val.includes('$') && '' != symbol_val && undefined != apiKey && '' != apiKey) {
 
     return [
@@ -181,6 +178,7 @@ const stocksEdit = (props) => {
           `align${align}`,
           'placeholder-stock'
         )}
+             d
              keepPlaceholderOnFocus={true}
         >
           <RichText
@@ -199,19 +197,22 @@ const stocksEdit = (props) => {
       </Fragment>
     ];
   } else {
-    return (
-      <div>
-        <RichText
-          onSetup={setupEditor}
-          tagName="div"
-          formattingControls={[]}
-          placeholder={__('Enter Company name to find Stock Index.', langDomain)}
-          onChange={onChangeMessage}
-          value={message}
-          keepPlaceholderOnFocus={true}
-        />
-      </div>
-    );
+    return [
+      isSelected,
+      <Fragment key="stocksInfo">
+        <div>
+          <RichText
+            onSetup={setupEditor}
+            tagName="div"
+            formattingControls={[]}
+            placeholder={__('Enter Company name to find Stock Index.', langDomain)}
+            onChange={onChangeMessage}
+            value={message}
+            keepPlaceholderOnFocus={true}
+          />
+        </div>
+      </Fragment>
+    ];
   }
 };
 
@@ -225,7 +226,5 @@ stocksEdit.defaultProps = {
   className: '',
   attributes: { symbol: 'DJIA' }
 };
-
-console.log('Editor+++');
 
 export default stocksEdit;

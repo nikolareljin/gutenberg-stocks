@@ -1,26 +1,25 @@
 <?php
 /**
  * Plugin Name: Stock Information — DJ Gutenberg Block Plugin
- * Plugin URI: https://github.com/ahmadawais/create-guten-block/
+ * Plugin URI: https://github.com/nikolareljin/gutenberg-stocks/
  * Description: stock-information — is a Gutenberg plugin created via create-guten-block.
- * Author: mrahmadawais, maedahbatool
- * Author URI: https://AhmadAwais.com/
+ * Author: Nikola Reljin
  * Version: 1.0.0
  * License: GPL2+
  * License URI: https://www.gnu.org/licenses/gpl-2.0.txt
  *
- * @package DJ
+ * @package StockInfo
  */
 
-//namespace  StockInfo;
+namespace  StockInfo;
 
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-// Require Curl library.
-//require_once __DIR__ . '/vendor/autoload.php';
+// Autoloader.
+require_once __DIR__ . '/vendor/autoload.php';
 require_once __DIR__ . '/inc/class-stockinfo-settings.php';
 
 // Include Settings file.
