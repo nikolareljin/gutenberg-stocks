@@ -1,0 +1,131 @@
+#methode_meta_box_notification {
+    width: 90%;
+    padding: 1%;
+    background-color: #efefef;
+    margin-top: 10px;
+    padding-left: 8px;
+}
+
+#methode_meta_box_notification {
+    padding-right: 5px;
+}
+
+#methode_status_path, #methode_folder_path {
+    font-size: 80%;
+    color: grey;
+}
+
+input.methode_changed_data, option.methode_changed_data {
+    color: red !important;
+}
+
+input.methode_changed_data:after {
+    color: red !important;
+    content: "(Changed in Méthode)" !important;
+}
+
+#methode_slug{
+    width:92%;
+}
+
+.methode_notification_message {
+    width: 24px;
+    height: 24px;
+    display: inline;
+    cursor: help;
+}
+
+.methode_id_fields {
+    font-size: 80%;
+    color: #000;
+    padding-left: 3px;
+}
+
+div.methode_id_fields span {
+    padding-left: 1em;
+}
+
+#methode_loader_img {
+    width: 99%;
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+#methode_send_button {
+    /*margin-top: 10px;*/
+}
+
+.dismiss_button {
+    display: inline-block;
+    color: #444;
+    border: 1px solid #ccc;
+    background: #fff;
+    box-shadow: 0 0 5px -1px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    vertical-align: middle;
+    padding: 5px;
+    text-align: center;
+    border-radius: 4px;
+    margin-bottom: 5px;
+    margin-top: 5px;
+}
+
+.dismiss_button:active {
+    color: red;
+    box-shadow: 0 0 5px -1px rgba(0, 0, 0, 0.6);
+}
+
+.methode_notification_error {
+    border-left: 4px solid #dd3d36;
+}
+
+.methode_notification_success {
+    border-left: 4px solid #2ecc40;
+}
+
+.methode_changes_information {
+    border: 1px solid #808080;
+    padding: 1px 1em;
+    margin: .6em;
+}
+
+.methode_result_information {
+    margin-top: 10px;
+    background-color: #ececec;
+}
+
+/* this is the default */
+.methode_result_information_arrowdown:before, .methode_changes_information_arrowdown:before {
+    content: '\f140';
+    cursor: pointer;
+    float: right;
+    width: 27px;
+    height: 30px;
+    padding: 0px;
+    font: 400 20px/1 dashicons;
+    color: #aaa;
+}
+
+.methode_result_information_arrowup:before, .methode_changes_information_arrowup:before {
+    content: '\f142';
+}
+
+#methode_result_information_content, #methode_changes_information_content {
+    border-top: 1px #e2e2e2 solid;
+}
+
+.methode_result_information_title, .methode_changes_information_title {
+    color: #222;
+    font-size: 14px;
+    padding-left: 3px;
+    padding-bottom: 4px;
+    padding-top: 4px;
+}
+
+.methode_information_wrap {
+    white-space: pre-wrap; /* CSS3 */
+    white-space: -moz-pre-wrap; /* Firefox */
+    white-space: -pre-wrap; /* Opera <7 */
+    white-space: -o-pre-wrap; /* Opera 7 */
+    word-wrap: break-word; /* IE */
+}
