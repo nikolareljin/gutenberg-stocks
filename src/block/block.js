@@ -10,9 +10,10 @@ import './style.scss';
 import './editor.scss';
 
 import edit from './edit';
-// import save from './save';
+import save from './save';
 
 import SVGIcon from './SVGIcon';
+import ChartComponent from './ChartComponent';
 
 const { __, setLocaleData } = wp.i18n; // Import __() from wp.i18n
 const { registerBlockType } = wp.blocks; // Import registerBlockType() from wp.blocks
@@ -27,6 +28,9 @@ const {
 const {
   Tooltip
 } = wp.components;
+
+import React from 'react';
+import ReactDOM from 'react-dom';
 
 /**
  * Plugin Constants.
@@ -113,7 +117,47 @@ registerBlockType( blockNameSpace, {
     }
   },
   edit,
-  save: function(){
-    return null;
-  },
+  save
 });
+
+
+console.log("FRONTEND NEEDS TO LOAD!");
+
+/**
+ * Frontend render.
+ */
+ready(() => {
+
+  console.log("Started the loader");
+
+  // There may be many of these, so query them all
+  const containers = document.querySelectorAll(".stock-information-item");
+  // turn into array instead of node list
+  const containersArray = Array.prototype.slice.call(containers);
+
+  console.log(containersArray);
+
+  containersArray.forEach((element) => {
+    // get the props from this div
+    const symbolVal = element.dataset.symbol;
+
+    // Call react!
+    ReactDOM.render(
+      <ChartComponent apiKey={apiKey} symbol={symbolVal} />, // call MyCanvas and pass the strokeList as props
+      element // need to specify the element to render on
+    )
+  })
+});
+
+// Very much like $.ready() from jQuery
+function ready(fn) {
+  if (
+    document.attachEvent
+      ? document.readyState === "complete"
+      : document.readyState !== "loading"
+  ) {
+    fn();
+  } else {
+    document.addEventListener("DOMContentLoaded", fn);
+  }
+}

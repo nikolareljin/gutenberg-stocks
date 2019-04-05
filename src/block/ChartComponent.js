@@ -6,17 +6,17 @@ import { fitWidth } from 'react-stockcharts/lib/helper';
 const { Component } = wp.element;
 
 let config_data = JSON.stringify(stockinfo_config);
-let content = JSON.parse(config_data);
-
-console.log('Content from ChartComponent');
-console.log(content);
-
+let config_content = JSON.parse(config_data);
+let apiKey = config_content.apiKey;
 
 class ChartComponent extends Component {
 
   constructor (props) {
     super(...arguments);
     super(props);
+
+    console.log("PROPS @ CHART");
+    console.log(props);
 
     if(props.symbol && props.apiKey) {
       this.getDataFromUtils(props.apiKey, props.symbol);
@@ -28,8 +28,10 @@ class ChartComponent extends Component {
     if (props.apiKey) {
       this.setState({ apiKey: props.apiKey });
     }
-    console.log('CHART COMPONENT: State: -----');
-    console.log(this.state);
+  }
+
+  componentDidMount(props){
+    console.log("Chart Component componentDidMount - PROPS")
     console.log(props);
   }
 
@@ -42,12 +44,14 @@ class ChartComponent extends Component {
     let oldData = (undefined != this.state && undefined != this.state.data)? this.state.data : null;
     getData(symbol).then(data => {
       if(data) {
-        this.setState({ data, apiKey, symbol, render:true });
-        console.log(data);
+        this.setState({ data, apiKey, symbol, render: true });
       }
       else if(oldData){
         // Backup: if state was not retrieved.
         this.setState({data: oldData, render: true});
+      }
+      else{
+        this.setState({data: null, render: false});
       }
     });
   }
@@ -64,19 +68,17 @@ class ChartComponent extends Component {
    * @returns {*}
    */
   render () {
-    // if(true == this.state.render) {
-      if (this.state == null || '' == this.state.symbol || undefined == this.state.symbol || this.state.symbol.includes('$')) {
+      if (this.state == null || null == this.state.data || '' == this.state.symbol || undefined == this.state.symbol || this.state.symbol.includes('$')) {
         return <div>Loading...</div>;
       }
       return (
         <Chart type={'hybrid'} data={this.state.data} name={this.state.name} symbol={this.state.symbol}/>
       );
-    // }
   }
 }
 
 ChartComponent.propTypes = {
-  data: PropTypes.array.isRequired,
+  data: PropTypes.array,
   width: PropTypes.number.isRequired,
   ratio: PropTypes.number.isRequired,
   type: PropTypes.oneOf(['svg', 'hybrid']).isRequired,
