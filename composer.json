@@ -1,7 +1,7 @@
 {
     "name": "dj/stock-info-plugin",
     "type": "wordpress-plugin",
-    "version": "1.0.0-RC",
+    "version": "0.0.1",
     "require": {
         "php": ">=7.1",
         "php-curl-class/php-curl-class": "^8.0",
