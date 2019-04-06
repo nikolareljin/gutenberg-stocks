@@ -20,7 +20,11 @@ https://www.alphavantage.co/support/#api-key
 ## Setup application
 Clone the project into your Wordpress `wp-content/plugins` or `wp-content/mu-plugins` .
 
-## Configure the plugin
+In the administration section of your website, Activate the plugin.
+
+Configure your API settings in the plugin congfiguration.
+
+### Configure the plugin
 
 Open the page configuration page and change the default settings.
 
