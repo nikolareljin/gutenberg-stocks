@@ -12,7 +12,7 @@ The data is shown for a period of the last month (30 days) till the current day.
 This plugin uses __Alphavantage API__ service for historical stock data retrieval:
 https://www.alphavantage.co/
 
-__Note :__ Alphavantage API allows 4 requests per minute so using more than that number of requests will result in an error.  
+__Note :__ Alphavantage API allows 4 requests per minute in the Free API service so using more than that number of requests will result in an error.  
 
 
 Please get your API token before activating the plugin. 
