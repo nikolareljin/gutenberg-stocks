@@ -58,7 +58,7 @@ class ChartComponent extends Component {
 
   componentDidMount () {
     setTimeout(function() { //Start the timer
-      this.setState({render: true}) //After 1 second, set render to true
+      this.setState({render: true}) //After 2 seconds, set render to true
     }.bind(this), 2000);
   }
 
@@ -68,7 +68,7 @@ class ChartComponent extends Component {
    * @returns {*}
    */
   render () {
-      if (this.state == null || null == this.state.data || '' == this.state.symbol || undefined == this.state.symbol || this.state.symbol.includes('$')) {
+      if ( null === this.state || null === this.state.data || '' === this.state.symbol || undefined === this.state.symbol || this.state.symbol.includes('$')) {
         return <div>Loading...</div>;
       }
       return (

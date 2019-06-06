@@ -1,6 +1,6 @@
 import React, { Fragment } from 'react';
 import PropTypes from 'prop-types';
-import ChartComponent from './block';
+import ChartComponent from './ChartComponent';
 
 const Company = (
   {

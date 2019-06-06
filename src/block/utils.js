@@ -144,21 +144,6 @@ const getSymbolValue = (text) => {
  * @param {*} text
  */
 export const getShortcode = (text) => {
-  // matches = regex.exec(text)
-  // //
-  // // // let matches = text.match(/stocks-info symbol=(.*)"/i);
-  // console.log(matches);
-  // let symbol = matches[1];
-  // symbol = symbol.replace('"','');
-  // symbol = symbol.replace(']','');
-
-  // wp.element.createElement(
-  //   <div>
-  //     {symbol}
-  //     <ChartComponent apiKey={symbol} symbol={symbol} data={getData(symbol)}/>
-  //   </div>
-  // );
-
   wp.element.createElement(
     'wp-raw-html',
     { dangerouslySetInnerHTML: { __html: text } }
