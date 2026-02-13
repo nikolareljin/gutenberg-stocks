@@ -3,7 +3,7 @@ Demo project for Zac Gordon's JS for WP course : https://javascriptforwp.com
 
 Plugin renders Stock index information as a Time Series of the global equity specified, covering 20+ years of historical data.
 
-__Requirements:__ Gutenberg 4.8 (or later).
+__Requirements:__ Node 20.x, npm 10+, Gutenberg 4.8 (or later).
 
 The data is shown for a period of the last month (30 days) till the current day.
 
@@ -81,14 +81,8 @@ Install NPM dependencies
 - Watches for any changes and reports back any errors in your code.
 
 ## 👉  `npm run build`
-- Use to build production code for your block inside `dist` folder.
+- Use to build production code for your block inside `build` folder.
 - Runs once and reports back the gzip file sizes of the produced code.
-
-## 👉  `npm run eject`
-- Use to eject your plugin out of `create-guten-block`.
-- Provides all the configurations so you can customize the project as you want.
-- It's a one-way street, `eject` and you have to maintain everything yourself.
-- You don't normally have to `eject` a project because by ejecting you lose the connection with `create-guten-block` and from there onwards you have to update and maintain all the dependencies on your own.
 
 
 ### React Stock Charts
@@ -97,11 +91,6 @@ This project uses React Stock Charts to render the time series: http://rrag.gith
 More information about the React component: https://github.com/rrag/react-stockcharts
 
 
-### Create Guten Block 
+### Build Tooling
 
-This project was bootstrapped with [Create Guten Block](https://github.com/ahmadawais/create-guten-block).
-
-Below you will find some information on how to run scripts.
-
->You can find the most recent version of the Create Guten Block guide [here](https://github.com/ahmadawais/create-guten-block).
-
+This project uses modern `@wordpress/scripts` tooling for block build and development workflows.

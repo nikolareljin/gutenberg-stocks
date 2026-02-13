@@ -13,7 +13,6 @@ import ReactDOM from 'react-dom';
 import PropTypes from 'prop-types';
 import {getShortcode, getData, getParsedData} from './utils';
 import ChartComponent from './ChartComponent';
-import MyCanvas from '../../../paint-me-tutorial/assets/src/paint-me.view';
 
 let config_data = JSON.stringify(stockinfo_config);
 let config_content = JSON.parse(config_data);
