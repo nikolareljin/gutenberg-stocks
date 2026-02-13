@@ -1,6 +1,6 @@
 {
   "name": "stock-information-dj-guten-block",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "private": true,
   "scripts": {
     "start": "wp-scripts start src/index.js --output-path=build",
