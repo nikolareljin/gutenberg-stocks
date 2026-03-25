@@ -7,3 +7,7 @@ vendor/
 composer.lock
 
 /ignore/
+
+# Ignore Claude memory files outside the repo root
+CLAUDE.md
+!/CLAUDE.md
