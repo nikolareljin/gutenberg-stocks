@@ -94,3 +94,11 @@ More information about the React component: https://github.com/rrag/react-stockc
 ### Build Tooling
 
 This project uses modern `@wordpress/scripts` tooling for block build and development workflows.
+
+---
+
+## Clone traffic
+
+![Clone traffic](https://raw.githubusercontent.com/nikolareljin/stats/main/charts/gutenberg-stocks.svg)
+
+_Updated daily. Total and unique cloners over the last 14 days._
