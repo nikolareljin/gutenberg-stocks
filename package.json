@@ -19,8 +19,8 @@
     "react-stockcharts": "^0.7.8"
   },
   "devDependencies": {
-    "@wordpress/scripts": "^31.4.0",
-    "postcss": "^8.5.14",
+    "@wordpress/scripts": "^34.1.0",
+    "postcss": "^8.5.26",
     "webpack": "^5.105.2",
     "webpack-cli": "^5.1.4"
   }
