@@ -1,0 +1,18 @@
+name: Auto Tag Release
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  actions: write
+  contents: write
+  pull-requests: read
+
+jobs:
+  tag:
+    uses: nikolareljin/ci-helpers/.github/workflows/auto-tag-release.yml@production
+    with:
+      release_workflow: create-github-release.yml
+      update_production_tag: false
