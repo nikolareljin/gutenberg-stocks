@@ -1,6 +1,5 @@
 import { csvParse, tsvParse } from 'd3-dsv';
 import { timeParse } from 'd3-time-format';
-import ChartComponent from './ChartComponent';
 export { getParsedData } from './parse';
 
 let config_data = JSON.stringify(stockinfo_config);
