@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.1.1] - 2026-08-24
+
+### Security
+- Modernized the WordPress, React, and charting dependency graph and remediated npm audit findings.
+
+### Changed
+- Replaced the legacy stock-chart component with React Financial Charts.
+- Adopted shared ci-helpers workflows for dependency audit, tests, build, and PHP syntax validation.
+
+### Fixed
+- Corrected responsive chart sizing, chart gradient handling, and parser validation coverage.
+
 ## [0.1.0] - 2026-02-13
 
 ### Security
