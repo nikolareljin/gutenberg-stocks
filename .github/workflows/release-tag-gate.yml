@@ -1,0 +1,13 @@
+name: Release Tag Gate
+
+on:
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    uses: nikolareljin/ci-helpers/.github/workflows/release-tag-gate.yml@production
