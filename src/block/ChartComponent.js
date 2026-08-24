@@ -2,7 +2,6 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import Chart from './Chart';
 import { getData } from './utils';
-import { fitWidth } from 'react-stockcharts/lib/helper';
 const { Component } = wp.element;
 
 let config_data = JSON.stringify(stockinfo_config);
@@ -93,6 +92,4 @@ ChartComponent.defaultProps = {
   symbol: '',
   apiKey: '',
 };
-ChartComponent = fitWidth(ChartComponent);
-
 export default ChartComponent;
