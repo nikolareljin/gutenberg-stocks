@@ -9,6 +9,7 @@ import {
   AreaSeries,
   Chart,
   ChartCanvas,
+  withDeviceRatio,
   withSize,
   XAxis,
   YAxis,
@@ -54,8 +55,8 @@ class AreaChart extends React.Component {
           <defs>
             <linearGradient id="StockGradient" x1="0" y1="100%" x2="0" y2="0%">
               <stop offset="0%" stopColor={stop_1_color} stopOpacity={0.2} />
-              <stop offset="70%" stopColor={stop_1_color} stopOpacity={0.4} />
-              <stop offset="100%"  stopColor={stop_1_color} stopOpacity={0.8} />
+              <stop offset="70%" stopColor={stop_2_color} stopOpacity={0.4} />
+              <stop offset="100%"  stopColor={stop_3_color} stopOpacity={0.8} />
             </linearGradient>
           </defs>
           <XAxis axisAt="bottom" orient="bottom" ticks={6}/>
@@ -87,6 +88,6 @@ AreaChart.defaultProps = {
   type: "svg",
   series: "DJIA"
 };
-AreaChart = withSize({ disableHeight: true })(AreaChart);
+AreaChart = withDeviceRatio()(withSize({ disableHeight: true })(AreaChart));
 
 export default AreaChart;

@@ -78,8 +78,6 @@ class ChartComponent extends Component {
 
 ChartComponent.propTypes = {
   data: PropTypes.array,
-  width: PropTypes.number.isRequired,
-  ratio: PropTypes.number.isRequired,
   type: PropTypes.oneOf(['svg', 'hybrid']).isRequired,
   symbol: PropTypes.string,
   apiKey: PropTypes.string.isRequired,
@@ -87,8 +85,6 @@ ChartComponent.propTypes = {
 
 ChartComponent.defaultProps = {
   type: 'hybrid',
-  width: 600,
-  height: 480,
   symbol: '',
   apiKey: '',
 };

@@ -5,7 +5,7 @@ export const getParsedData = (data) => {
 
 	try {
 		return JSON.parse(data);
-	} catch (error) {
+	} catch {
 		return {};
 	}
 };
