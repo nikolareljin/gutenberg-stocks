@@ -8,21 +8,23 @@ on:
     branches:
       - master
 
+permissions:
+  contents: read
+
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+  frontend:
+    uses: nikolareljin/ci-helpers/.github/workflows/node.yml@production
+    with:
+      concurrency_key: frontend
+      node_version: '20'
+      lint_command: 'npm ci && npm audit --audit-level=high'
+      test_command: 'npm test'
+      build_command: 'npm run build'
 
-      - name: Setup Node.js 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci --legacy-peer-deps
-
-      - name: Build
-        run: npm run build
+  php-syntax:
+    uses: nikolareljin/ci-helpers/.github/workflows/php.yml@production
+    with:
+      concurrency_key: php-syntax
+      php_version: '8.2'
+      lint_command: "find . -type f -name '*.php' -not -path './node_modules/*' -not -path './vendor/*' -print0 | xargs -0 -n 1 php -l"
+      test_command: ''

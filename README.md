@@ -3,7 +3,7 @@ Demo project for Zac Gordon's JS for WP course : https://javascriptforwp.com
 
 Plugin renders Stock index information as a Time Series of the global equity specified, covering 20+ years of historical data.
 
-__Requirements:__ Node 20.x, npm 10+, Gutenberg 4.8 (or later).
+__Requirements:__ Node 20+, npm 10+, and a currently supported WordPress/Gutenberg release.
 
 The data is shown for a period of the last month (30 days) till the current day.
 
@@ -85,10 +85,9 @@ Install NPM dependencies
 - Runs once and reports back the gzip file sizes of the produced code.
 
 
-### React Stock Charts
-This project uses React Stock Charts to render the time series: http://rrag.github.io/react-stockcharts/documentation.html#/svg_vs_canvas
-
-More information about the React component: https://github.com/rrag/react-stockcharts
+### React Financial Charts
+This project uses React Financial Charts to render the time series:
+https://github.com/reactivemarkets/react-financial-charts
 
 
 ### Build Tooling

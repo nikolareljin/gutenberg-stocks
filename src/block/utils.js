@@ -1,6 +1,6 @@
 import { csvParse, tsvParse } from 'd3-dsv';
 import { timeParse } from 'd3-time-format';
-import ChartComponent from './ChartComponent';
+export { getParsedData } from './parse';
 
 let config_data = JSON.stringify(stockinfo_config);
 let config_content = JSON.parse(config_data);
@@ -114,21 +114,6 @@ export const bindEvent = (element, eventName, eventHandler, options = {}) => {
     return element.attachEvent(`on${eventName}`, eventHandler, options);
   }
   return false;
-};
-
-/**
- * getParsedData
- * @param {String} data
- */
-export const getParsedData = (data) => {
-  if ('string' === typeof data && '' !== data) {
-    try {
-      return JSON.parse(data);
-    } catch (e) {
-      console.error(e); /* eslint-disable-line no-console */
-    }
-  }
-  return {};
 };
 
 const regex = /stocks-info symbol=(.*)/g;
