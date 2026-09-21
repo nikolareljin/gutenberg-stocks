@@ -1,0 +1,6 @@
+# Default ownership for the entire repository.
+#
+# With require_code_owner_review on the branch ruleset, a pull request opened by
+# anyone else needs an approving review from the owner named here. The repository
+# admin is a ruleset bypass actor, so the owner can still merge their own work.
+* @nikolareljin
