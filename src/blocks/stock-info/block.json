@@ -1,0 +1,44 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "nr-stocks/stock-chart",
+  "title": "Stock Chart",
+  "category": "widgets",
+  "icon": "chart-line",
+  "description": "Stock, forex, and crypto charts from swappable data providers.",
+  "attributes": {
+    "symbols": {
+      "type": "array",
+      "default": []
+    },
+    "provider": {
+      "type": "string",
+      "default": ""
+    },
+    "series": {
+      "type": "string",
+      "default": "daily"
+    },
+    "range": {
+      "type": "number",
+      "default": 30
+    },
+    "showQuote": {
+      "type": "boolean",
+      "default": false
+    },
+    "cacheTtl": {
+      "type": "number",
+      "default": 0
+    }
+  },
+  "supports": {
+    "align": ["wide", "full"],
+    "html": false
+  },
+  "textdomain": "nr-stocks",
+  "editorScript": "file:./index.js",
+  "editorStyle": "file:./index.css",
+  "style": "file:./style-index.css",
+  "viewScript": "file:./view.js"
+}

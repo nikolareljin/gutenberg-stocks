@@ -1,0 +1,26 @@
+.nr-stocks {
+	margin: 1.5em 0;
+}
+
+.nr-stocks-canvas svg {
+	display: block;
+	width: 100%;
+	height: auto;
+}
+
+.nr-stocks.is-rendered .nr-stocks-fallback {
+	display: none;
+}
+
+.nr-stocks-fallback {
+	list-style: disc;
+	margin: 0.5em 0 0 1.25em;
+	padding: 0;
+	color: #555;
+}
+
+.nr-stocks-error {
+	border-left: 4px solid #cc1818;
+	padding: 0.5em 1em;
+	background: #fcf0f1;
+}

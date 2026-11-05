@@ -1,0 +1,44 @@
+.nr-stocks-editor__search {
+	margin-bottom: 12px;
+}
+
+.nr-stocks-editor__suggestions {
+	list-style: none;
+	margin: 8px 0;
+	padding: 0;
+	border: 1px solid #ddd;
+	border-radius: 2px;
+	max-height: 220px;
+	overflow: auto;
+}
+
+.nr-stocks-editor__suggestions li {
+	margin: 0;
+	border-bottom: 1px solid #eee;
+}
+
+.nr-stocks-editor__suggestions li:last-child {
+	border-bottom: 0;
+}
+
+.nr-stocks-editor__chips {
+	list-style: none;
+	margin: 8px 0 0;
+	padding: 0;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.nr-stocks-editor__chips li {
+	background: #f0f0f0;
+	border-radius: 12px;
+	padding: 2px 6px 2px 10px;
+}
+
+.nr-stocks-editor__preview {
+	border: 1px dashed #ccc;
+	border-radius: 2px;
+	padding: 12px;
+	min-height: 120px;
+}
