@@ -4,12 +4,14 @@ This directory deploys to the plugin's SVN `assets/` (banners, icon,
 screenshots) via the 10up deploy action. It is excluded from the ZIP by
 `.distignore` and rejected from the payload by `bin/verify-dist.sh`.
 
-## Needed before submission
+## Inventory (all present)
 
-- `icon.svg` (present) — 256×256 viewBox, simple shapes, no embedded fonts.
-- `banner-772x250.png` + `banner-1544x500.png` — same artwork, exact sizes.
+- `icon.svg` — 256×256 viewBox, simple shapes, no embedded fonts.
+- `banner.svg` — textless master artwork (brand gradient + chart motif).
+- `banner-772x250.png` + `banner-1544x500.png` — exported from `banner.svg`
+  at exact sizes (`inkscape banner.svg -o <file> -w <w> -h <h>`).
 - `screenshot-1.png` — block in the editor with search + live preview.
-- `screenshot-2.png` — frontend chart with overlay + quote panel.
+- `screenshot-2.png` — frontend chart (logged-out capture).
 - `screenshot-3.png` — Settings screen (providers + cache).
 
 Screenshot captions live in `readme.txt` (`== Screenshots ==`) and must
