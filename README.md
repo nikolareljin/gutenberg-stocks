@@ -36,7 +36,7 @@ REST API. Built for submission to WordPress.org.
 git clone git@github.com:nikolareljin/gutenberg-stocks.git
 cd gutenberg-stocks
 ./update            # git submodules (script-helpers)
-npm ci
+npm install
 composer install
 ```
 

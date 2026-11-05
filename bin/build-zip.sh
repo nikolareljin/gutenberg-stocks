@@ -26,7 +26,7 @@ if ! command -v npm >/dev/null 2>&1; then
 fi
 
 echo "[INFO] Installing JS dependencies and building blocks…"
-npm ci --no-audit --no-fund
+npm install --no-audit --no-fund
 npm run build
 
 # Production PHP has no Composer runtime dependencies (PSR-4 autoloader in the

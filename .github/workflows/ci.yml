@@ -18,7 +18,7 @@ jobs:
     with:
       concurrency_key: frontend
       node_version: '24'
-      install_command: 'npm ci --no-audit --no-fund'
+      install_command: 'npm install --no-audit --no-fund'
       lint_command: 'npm run lint && npm audit --audit-level=high'
       test_command: 'npm test -- --ci'
       build_command: 'npm run build'

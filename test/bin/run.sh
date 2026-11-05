@@ -40,7 +40,7 @@ check() {
 info "Ensuring block assets are built…"
 if [[ ! -f build/blocks/stock-info/block.json ]]; then
   nr_ensure_node_24
-  npm ci --no-audit --no-fund
+  npm install --no-audit --no-fund
   npm run build
 fi
 

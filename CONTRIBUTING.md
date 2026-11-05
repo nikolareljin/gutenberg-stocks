@@ -4,7 +4,7 @@
 
 - PHP 7.4+ (8.2 recommended), Node 24+, Composer, Docker.
 - `./update` after cloning (syncs the `script-helpers` submodule).
-- `npm ci`, `composer install`.
+- `npm install`, `composer install`.
 
 ## Before every push
 

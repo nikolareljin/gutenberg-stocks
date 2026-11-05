@@ -28,7 +28,7 @@ if [ "${MODE}" = "all" ] || [ "${MODE}" = "js" ]; then
   nr_ensure_node_24
   if [ ! -d node_modules ]; then
     print_info "Installing JS dependencies…"
-    npm ci --no-audit --no-fund
+    npm install --no-audit --no-fund
   fi
   print_info "Jest…"
   npm test -- --ci || fail=1
