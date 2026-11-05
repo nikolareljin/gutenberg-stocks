@@ -18,5 +18,9 @@ jobs:
     with:
       plugin_slug: nr-stocks
       versions: '[{"wp":"6.3","php":"8.0"},{"wp":"7.1","php":"8.4"}]'
+      # Repo carries dev tooling the plugin never ships (see .distignore);
+      # without these, plugin-check flags the tooling, not the plugin.
+      exclude_directories: vendor,node_modules,.git,.github,scripts,test,tests,bin
+      exclude_files: .gitignore,.gitattributes,.editorconfig,.distignore,.gitmodules,.gitleaks.toml,.nvmrc,phpunit.xml.dist
       fail_on_findings: true
       upload_artifact: true
