@@ -1,0 +1,55 @@
+services:
+  db:
+    image: mariadb:10.11
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: wordpress
+      MARIADB_USER: wordpress
+      MARIADB_PASSWORD: wordpress
+      MARIADB_ROOT_PASSWORD: wordpress
+    volumes:
+      - db_data:/var/lib/mysql
+
+  wordpress:
+    # Override the WordPress under test, e.g. NRSTX_WP_VERSION=6.3 ./test/bin/run.sh
+    image: wordpress:${NRSTX_WP_VERSION:-latest}
+    depends_on:
+      - db
+    restart: unless-stopped
+    ports:
+      - "${NRSTX_TEST_PORT:-8080}:80"
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DEBUG: 1
+    volumes:
+      - wp_core:/var/www/html
+      # Mount this plugin (or a dist copy, see test/bin/plugin-check.sh).
+      - ${NRSTX_PLUGIN_SRC:-../}:/var/www/html/wp-content/plugins/nr-stocks:rw
+      - wp_uploads:/var/www/html/wp-content/uploads
+
+  wpcli:
+    image: wordpress:cli
+    depends_on:
+      - db
+      - wordpress
+    user: "33:33" # www-data
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: wordpress
+      WP_CLI_CONFIG_PATH: /workspace/tmp/wp-cli.yml
+    working_dir: /var/www/html
+    volumes:
+      - wp_core:/var/www/html
+      - ${NRSTX_PLUGIN_SRC:-../}:/var/www/html/wp-content/plugins/nr-stocks:rw
+      - wp_uploads:/var/www/html/wp-content/uploads
+      - ./:/workspace:rw
+
+volumes:
+  db_data:
+  wp_core:
+  wp_uploads:

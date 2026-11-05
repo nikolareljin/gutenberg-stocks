@@ -1,0 +1,5 @@
+[
+  {"date": "2026-10-01", "base": "EUR", "quote": "USD", "rate": 1.1326},
+  {"date": "2026-10-02", "base": "EUR", "quote": "USD", "rate": 1.1288},
+  {"date": "2026-10-03", "base": "EUR", "quote": "USD", "rate": 1.1282}
+]
