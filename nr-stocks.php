@@ -4,7 +4,7 @@
  * Plugin URI:        https://github.com/nikolareljin/gutenberg-stocks
  * Description:       Stock, forex, and crypto charts for the block editor. Multiple data providers, server-side caching, shortcode, and a headless-ready REST API.
  * Author:            Nik Reljin
- * Author URI:        https://profiles.wordpress.org/nikolareljin/
+ * Author URI:        https://profiles.wordpress.org/nreljin/
  * Version:           1.0.0
  * Requires at least: 6.3
  * Tested up to:      7.1

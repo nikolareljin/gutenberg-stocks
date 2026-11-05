@@ -1,6 +1,6 @@
 === NR Stocks ===
-Contributors: nikolareljin
-Donate link: https://profiles.wordpress.org/nikolareljin/
+Contributors: nreljin
+Donate link: https://profiles.wordpress.org/nreljin/
 Tags: stocks, charts, forex, crypto, block
 Requires at least: 6.3
 Tested up to: 7.1

@@ -38,7 +38,7 @@ msgstr ""
 
 #. Author URI of the plugin
 #: nr-stocks.php
-msgid "https://profiles.wordpress.org/nikolareljin/"
+msgid "https://profiles.wordpress.org/nreljin/"
 msgstr ""
 
 #: inc/Renderer.php:72
