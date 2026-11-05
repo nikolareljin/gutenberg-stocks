@@ -1,0 +1,36 @@
+name: E2E (Docker)
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        wp: ['6.3', 'latest']
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Run E2E (WP ${{ matrix.wp }})
+        run: bash test/bin/run.sh
+        env:
+          NRSTX_WP_VERSION: ${{ matrix.wp }}
+
+      - name: Tear down Docker
+        if: always()
+        run: docker compose -f test/docker-compose.yml down -v

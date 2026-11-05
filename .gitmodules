@@ -1,0 +1,4 @@
+[submodule "scripts/script-helpers"]
+	path = scripts/script-helpers
+	url = https://github.com/nikolareljin/script-helpers.git
+	branch = production

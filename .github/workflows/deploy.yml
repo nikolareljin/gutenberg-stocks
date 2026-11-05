@@ -1,0 +1,72 @@
+name: Deploy to WordPress.org
+
+on:
+  push:
+    tags:
+      - '*'
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Use PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+
+      - name: Build ZIP
+        run: bash bin/build-zip.sh
+
+      - name: Verify payload (hard gate before SVN)
+        run: bash bin/verify-dist.sh .build/nr-stocks
+
+      - name: List ZIP
+        run: |
+          echo "dist directory contents:"
+          ls -lah dist || true
+
+      - name: Check if WP.org SVN repo exists
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y subversion
+          if svn ls https://plugins.svn.wordpress.org/nr-stocks > /dev/null 2>&1; then
+            echo "SVN_EXISTS=true" >> $GITHUB_ENV
+          else
+            echo "SVN_EXISTS=false" >> $GITHUB_ENV
+          fi
+
+      - name: WordPress.org Plugin Deploy
+        if: env.SVN_EXISTS == 'true'
+        uses: 10up/action-wordpress-plugin-deploy@stable
+        with:
+          generate-zip: false
+        env:
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          SLUG: nr-stocks
+          SVN_URL: https://plugins.svn.wordpress.org/nr-stocks
+
+      - name: Dry-run deploy (SVN repo not found)
+        if: env.SVN_EXISTS != 'true'
+        uses: 10up/action-wordpress-plugin-deploy@stable
+        with:
+          generate-zip: false
+          dry-run: true
+        env:
+          SLUG: nr-stocks
+          SVN_URL: https://plugins.svn.wordpress.org/nr-stocks

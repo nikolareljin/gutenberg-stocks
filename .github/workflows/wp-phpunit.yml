@@ -1,0 +1,27 @@
+name: PHPUnit (WP suite)
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  latest:
+    uses: nikolareljin/ci-helpers/.github/workflows/wp-phpunit.yml@production
+    with:
+      php_version: '8.3'
+      wp_version: 'latest'
+
+  floor:
+    uses: nikolareljin/ci-helpers/.github/workflows/wp-phpunit.yml@production
+    with:
+      php_version: '7.4'
+      wp_version: '6.3'
+      wp_multisite: '1'

@@ -1,0 +1,38 @@
+name: Dist Guard
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+
+      - name: Build distributable (runs verify-dist, fail closed)
+        run: bash bin/build-zip.sh
+
+      - name: Upload ZIP + manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: nr-stocks-dist
+          path: |
+            dist/nr-stocks.zip
+            dist/nr-stocks-manifest.txt

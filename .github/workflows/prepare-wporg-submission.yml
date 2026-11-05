@@ -1,0 +1,46 @@
+name: Prepare WP.org Submission
+
+on:
+  workflow_dispatch:
+
+env:
+  PLUGIN_SLUG: nr-stocks
+
+jobs:
+  prepare:
+    name: Build review ZIP + checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Use PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+
+      - name: Build ZIP
+        run: bash bin/build-zip.sh
+
+      - name: Verify payload
+        run: bash bin/verify-dist.sh .build/nr-stocks
+
+      - name: List ZIP
+        run: ls -lah dist || true
+
+      - name: Upload ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: "${{ env.PLUGIN_SLUG }}-submission"
+          path: dist/${{ env.PLUGIN_SLUG }}.zip
+
+      - name: Print submission instructions
+        run: |
+          echo "Submit the plugin at: https://wordpress.org/plugins/developers/add/"
+          echo "Use the built ZIP: dist/${PLUGIN_SLUG}.zip"
+          echo "Ensure your WP.org account matches SVN credentials used in deploy."

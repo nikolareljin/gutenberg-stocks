@@ -1,0 +1,22 @@
+name: Plugin Check (matrix)
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    uses: nikolareljin/ci-helpers/.github/workflows/wp-plugin-check.yml@production
+    with:
+      plugin_slug: nr-stocks
+      versions: '[{"wp":"6.3","php":"8.0"},{"wp":"7.1","php":"8.4"}]'
+      fail_on_findings: true
+      upload_artifact: true

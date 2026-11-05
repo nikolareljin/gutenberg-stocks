@@ -1,0 +1,39 @@
+name: Plugin Check (Docker)
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  plugin-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Run Plugin Check in Docker
+        run: bash test/bin/plugin-check.sh
+
+      - name: Upload check artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugin-check-results
+          path: |
+            test/tmp/plugin-check.json
+            test/tmp/meta-check.json
+          if-no-files-found: warn
+
+      - name: Tear down Docker
+        if: always()
+        run: docker compose -f test/docker-compose.yml down -v

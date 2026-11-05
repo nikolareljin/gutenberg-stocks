@@ -2,29 +2,33 @@ name: CI
 
 on:
   pull_request:
-    branches:
-      - master
   push:
-    branches:
-      - master
+    branches: [master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
   frontend:
-    uses: nikolareljin/ci-helpers/.github/workflows/node.yml@production
+    uses: nikolareljin/ci-helpers/.github/workflows/react.yml@production
     with:
       concurrency_key: frontend
-      node_version: '20'
-      lint_command: 'npm ci && npm audit --audit-level=high'
-      test_command: 'npm test'
+      node_version: '24'
+      install_command: 'npm ci --no-audit --no-fund'
+      lint_command: 'npm run lint && npm audit --audit-level=high'
+      test_command: 'npm test -- --ci'
       build_command: 'npm run build'
 
-  php-syntax:
+  php-lint:
     uses: nikolareljin/ci-helpers/.github/workflows/php.yml@production
     with:
-      concurrency_key: php-syntax
+      concurrency_key: php-lint
       php_version: '8.2'
-      lint_command: "find . -type f -name '*.php' -not -path './node_modules/*' -not -path './vendor/*' -print0 | xargs -0 -n 1 php -l"
+      install_command: 'composer install --no-interaction --prefer-dist'
+      lint_command: 'vendor/bin/phpcs -p -s .'
       test_command: ''
+      build_command: ''

@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Sync git submodules (script-helpers). Safe to run repeatedly.
+set -euo pipefail
+
+cd "$(dirname "$0")"
+
+SUBMODULE_PATH="scripts/script-helpers"
+SUBMODULE_URL="https://github.com/nikolareljin/script-helpers.git"
+SUBMODULE_BRANCH="production"
+
+if [ ! -f .gitmodules ] || ! grep -q "${SUBMODULE_PATH}" .gitmodules 2>/dev/null; then
+  echo "Adding ${SUBMODULE_PATH} submodule…"
+  git submodule add -b "${SUBMODULE_BRANCH}" "${SUBMODULE_URL}" "${SUBMODULE_PATH}"
+else
+  echo "Updating ${SUBMODULE_PATH} submodule…"
+  git submodule update --init "${SUBMODULE_PATH}"
+  git submodule update --remote --merge "${SUBMODULE_PATH}"
+fi
+
+echo "Done."
