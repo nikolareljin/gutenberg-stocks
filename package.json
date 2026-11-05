@@ -1,27 +1,30 @@
 {
-  "name": "stock-information-dj-guten-block",
-  "version": "0.1.1",
+  "name": "nr-stocks",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
-    "start": "wp-scripts start src/index.js --output-path=build",
-    "build": "wp-scripts build src/index.js --output-path=build",
-    "test": "wp-scripts test-unit-js --passWithNoTests"
+    "start": "wp-scripts start",
+    "build": "wp-scripts build",
+    "test": "wp-scripts test-unit-js",
+    "lint": "wp-scripts lint-js src",
+    "lint:fix": "wp-scripts lint-js src --fix"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=24"
   },
   "dependencies": {
-    "classnames": "^2.5.1",
     "d3-dsv": "^3.0.1",
     "d3-scale": "^4.0.2",
     "d3-shape": "^3.2.0",
-    "d3-time-format": "^4.1.0",
-    "prop-types": "^15.8.1",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-financial-charts": "^2.0.1"
+    "d3-time-format": "^4.1.0"
   },
   "devDependencies": {
+    "@wordpress/api-fetch": "^8.1.0",
+    "@wordpress/block-editor": "^20.0.0",
+    "@wordpress/blocks": "^17.1.0",
+    "@wordpress/components": "^44.0.0",
+    "@wordpress/element": "^10.1.0",
+    "@wordpress/i18n": "^7.1.0",
     "@wordpress/scripts": "^34.1.0"
   },
   "overrides": {

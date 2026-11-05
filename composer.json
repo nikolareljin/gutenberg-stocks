@@ -1,18 +1,50 @@
 {
-    "name": "dj/stock-info-plugin",
-    "type": "wordpress-plugin",
-    "version": "0.1.1",
-    "require": {
-        "php": ">=7.1",
-        "php-curl-class/php-curl-class": "^8.0",
-        "composer/installers": "^1.6"
-    },
-    "autoload": {
-        "psr-4": {
-            "StockInfo\\": "./"
-        }
-    },
-    "require-dev": {
-        "squizlabs/php_codesniffer": "3.*"
+  "name": "nikolareljin/nr-stocks",
+  "description": "Stock, forex, and crypto charts for the block editor, with multiple data providers, server-side caching, and a REST API.",
+  "type": "wordpress-plugin",
+  "license": "GPL-2.0-or-later",
+  "homepage": "https://github.com/nikolareljin/gutenberg-stocks",
+  "keywords": ["wordpress", "plugin", "stocks", "charts", "forex", "crypto", "gutenberg"],
+  "support": {
+    "issues": "https://github.com/nikolareljin/gutenberg-stocks/issues",
+    "source": "https://github.com/nikolareljin/gutenberg-stocks"
+  },
+  "authors": [
+    {
+      "name": "Nik Reljin",
+      "homepage": "https://profiles.wordpress.org/nikolareljin/"
     }
+  ],
+  "require": {
+    "php": ">=7.4"
+  },
+  "require-dev": {
+    "squizlabs/php_codesniffer": "^3.7",
+    "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
+    "wp-coding-standards/wpcs": "^3.0",
+    "phpcompatibility/phpcompatibility-wp": "^2.1",
+    "phpunit/phpunit": "^9.6",
+    "yoast/phpunit-polyfills": "^1.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Nikolareljin\\NrStocks\\": "inc/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Nikolareljin\\NrStocks\\Tests\\": "tests/phpunit/"
+    }
+  },
+  "scripts": {
+    "lint": "phpcs -p -s .",
+    "lint:fix": "phpcbf -p -s .",
+    "test": "phpunit"
+  },
+  "config": {
+    "allow-plugins": {
+      "dealerdirect/phpcodesniffer-composer-installer": true
+    },
+    "sort-packages": true
+  }
 }

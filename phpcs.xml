@@ -1,0 +1,62 @@
+<?xml version="1.0"?>
+<ruleset name="NR Stocks Coding Standards">
+    <description>WordPress Coding Standards for NR Stocks (PHP 7.4+, WP 6.3+).</description>
+
+    <!-- Files are provided via CLI path. -->
+
+    <exclude-pattern>vendor/*</exclude-pattern>
+    <exclude-pattern>node_modules/*</exclude-pattern>
+    <exclude-pattern>build/*</exclude-pattern>
+    <exclude-pattern>scripts/*</exclude-pattern>
+    <exclude-pattern>.wordpress-org/*</exclude-pattern>
+    <exclude-pattern>assets/*</exclude-pattern>
+    <exclude-pattern>languages/*</exclude-pattern>
+    <exclude-pattern>docs/*</exclude-pattern>
+    <!-- WP-CLI glue scripts: executed by e2e, not style-gated (reference posture). -->
+    <exclude-pattern>test/*</exclude-pattern>
+
+    <!-- Tests stay scanned, but API-doc rules don't apply to them. -->
+    <rule ref="Squiz.Commenting.FileComment">
+        <exclude-pattern>*/tests/*</exclude-pattern>
+    </rule>
+    <rule ref="Squiz.Commenting.ClassComment">
+        <exclude-pattern>*/tests/*</exclude-pattern>
+    </rule>
+    <rule ref="Squiz.Commenting.FunctionComment">
+        <exclude-pattern>*/tests/*</exclude-pattern>
+    </rule>
+
+    <arg name="basepath" value="."/>
+    <arg name="colors"/>
+    <arg name="extensions" value="php"/>
+    <arg value="sp"/>
+    <config name="ignore_warnings_on_exit" value="1"/>
+
+    <rule ref="WordPress-Core"/>
+    <rule ref="WordPress-Docs"/>
+    <rule ref="WordPress-Extra"/>
+
+    <!-- Same global-prefix gate Plugin Check enforces (tests exempt). -->
+    <rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+        <properties>
+            <property name="prefixes" type="array">
+                <element value="nr_stocks"/>
+                <element value="nrstx"/>
+                <element value="Nikolareljin"/>
+            </property>
+        </properties>
+        <exclude-pattern>*/tests/*</exclude-pattern>
+    </rule>
+
+    <!-- Target PHP and WordPress versions for compatibility checks. -->
+    <config name="testVersion" value="7.4-"/>
+    <config name="minimum_supported_wp_version" value="6.3"/>
+
+    <!-- Use the aggregate WordPress standard plus PHPCompatibility for WP. -->
+    <rule ref="WordPress">
+        <!-- Allow PSR-4 file naming for class files under inc/ and tests. -->
+        <exclude name="WordPress.Files.FileName.NotHyphenatedLowercase"/>
+        <exclude name="WordPress.Files.FileName.InvalidClassFileName"/>
+    </rule>
+    <rule ref="PHPCompatibilityWP"/>
+</ruleset>
