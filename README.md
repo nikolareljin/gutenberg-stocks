@@ -1,103 +1,89 @@
-# Stock Information
-Demo project for Zac Gordon's JS for WP course : https://javascriptforwp.com
+# NR Stocks
 
-Plugin renders Stock index information as a Time Series of the global equity specified, covering 20+ years of historical data.
+Stock, forex, and crypto charts for the block editor — multiple swappable
+data providers, server-side caching, a shortcode, and a headless-ready
+REST API. Built for submission to WordPress.org.
 
-__Requirements:__ Node 20+, npm 10+, and a currently supported WordPress/Gutenberg release.
+`nr-stocks` is the plugin slug; this repository keeps its historical name,
+`gutenberg-stocks`.
 
-The data is shown for a period of the last month (30 days) till the current day.
+## Features
 
-![alt text](.github/screenshots/stock_info_display.png?raw=true "Configure settings for the Stock Information plugin")
+- **Stock Chart block**: symbol search, multi-symbol comparison overlays,
+  daily/weekly/monthly/intraday series, point range, quote panel.
+- **Providers**: Alpha Vantage, Twelve Data, Frankfurter (keyless forex),
+  CoinGecko (keyless crypto), ECB reference rates — swappable per block,
+  new ones addable via config (`docs/adding-a-provider.md`).
+- **Caching**: per-endpoint TTL presets (1/5/15/60 min + custom),
+  per-block override, object-cache aware, stampede protection, purge +
+  `wp nr-stocks cache purge`.
+- **Shortcode**: `[nr-stocks symbols="AAPL,MSFT" provider="twelvedata"]`
+  with server-rendered output and a no-JavaScript fallback.
+- **REST API**: `nr-stocks/v1` (`/series`, `/quote`, `/search`,
+  `/providers`) with cache headers + rate limits (`docs/rest-api.md`).
+- API keys stay on the server — browsers only talk to your own site.
 
-This plugin uses __Alphavantage API__ service for historical stock data retrieval:
-https://www.alphavantage.co/
+## Requirements
 
-__Note :__ Alphavantage API allows 4 requests per minute in the Free API service so using more than that number of requests will result in an error.  
+- WordPress 6.3+ (tested to 7.1), PHP 7.4+.
+- Provider keys where needed: Alpha Vantage / Twelve Data free keys;
+  Frankfurter, CoinGecko demo, and ECB need none.
+- Development: Node 24+, Composer, Docker (e2e), `jq`, `curl`, `zip`.
 
+## Install (development)
 
-Please get your API token before activating the plugin. 
-https://www.alphavantage.co/support/#api-key
+```bash
+git clone git@github.com:nikolareljin/gutenberg-stocks.git
+cd gutenberg-stocks
+./update            # git submodules (script-helpers)
+npm ci
+composer install
+```
 
- 
+Activate the plugin in WordPress, then visit Settings → NR Stocks.
 
-## Setup application
-Clone the project into your Wordpress `wp-content/plugins` or `wp-content/mu-plugins` .
+## Use
 
-In the administration section of your website, Activate the plugin.
+The **default** integration is the block: its settings are a plain JSON
+structure stored in post content, editable in the sidebar with a live
+preview:
 
-Configure your API settings in the plugin congfiguration.
+```html
+<!-- wp:nr-stocks/stock-chart {"symbols":"AAPL,MSFT","provider":"twelvedata"} /-->
+```
 
-### Configure the plugin
+- Block (default): insert **Stock Chart**, search symbols, tune
+  provider/series in the sidebar. JSON attributes stay portable,
+  versionable, and work with revisions.
+- Shortcode (fallback for classic content, widgets, page builders):
+  `[nr-stocks symbols="EUR/USD" provider="frankfurter" quote="1"]`.
+  Kept for compatibility; new content should use the block.
+- Headless: `GET /wp-json/nr-stocks/v1/series?provider=…&symbols=…`.
 
-Open the page configuration page and change the default settings.
+## Develop
 
-Go to the following link: __*wp-admin/admin.php?page=stockinfo_settings*__
+| Task | Command |
+|---|---|
+| Lint (PHP + JS) | `scripts/lint.sh` |
+| Unit tests (Jest + PHPUnit) | `scripts/test.sh` |
+| E2E (Docker WP) | `scripts/e2e.sh` |
+| Plugin Check + meta checks | `scripts/pcc.sh` |
+| Build distributable ZIP | `scripts/zip.sh` (runs `verify-dist`, fail closed) |
+| Regenerate POT | `bin/make-pot.sh` |
+| Bump version | `bash test/bin/version_bump.sh minor` |
 
-![alt text](.github/screenshots/configuration.png?raw=true "Configure settings for the Stock Information plugin")
+Local scripts mirror CI one-to-one: `test/bin/*` is what the workflows
+run. See `CONTRIBUTING.md` for the full flow and `test/README.md` for the
+test stack (`NRSTX_TEST_PORT`, `NRSTX_WP_VERSION`).
 
-Please insert the Token you previously retrieved from the API service:
-https://www.alphavantage.co/support/#api-key
+## Release to WordPress.org
 
+1. Merge a `release/X.Y.Z` PR → tag + GitHub Release are automated.
+2. Run the manual **Prepare WP.org Submission** workflow → review ZIP.
+3. Submit at `wordpress.org/plugins/developers/add/` (first time only).
+4. The **Deploy to WordPress.org** workflow pushes tags to SVN
+   (needs `SVN_USERNAME` / `SVN_PASSWORD` secrets; dry-runs until the SVN
+   repo exists).
 
-## Use the plugin
-Insert new Block into the content.
-![alt text](.github/screenshots/insert.png?raw=true "Insert Stock Info plugin into the post")
-
-Search the Stock Index key you would like to show.
-
-The plugin is using Autocomplete functionality to search for the indexes using Alphavantage API. To start the autocomplete, you need to type `$` character that will enable the Autocompleter.
-
-![alt text](.github/screenshots/enter_search.png?raw=true "Search for the stock index")
-
-Select the index and click Enter.
-![alt text](.github/screenshots/pick_index_3.png?raw=true "Select index you would like to show")
-
-Final result with the stock graph displayed in the post.
-You can change the Index once it was displayed on the page by pressing `$` in the `Enter Comppany name to find Stock Index` prompt.
-
-![alt text](.github/screenshots/show_index.png?raw=true "Select index you would like to show")
-
-## Prepare PHP
-
-`composer install --no-dev`
-
-to install the required packages
-
-`composer dump-autoload --optimize`
-
-## More information about the API
-
-https://www.alphavantage.co/documentation/
-
-
-## Compile React components
-
-Install NPM dependencies
-
-`npm install`
-
-## 👉  `npm start`
-- Use to compile and run the block in development mode.
-- Watches for any changes and reports back any errors in your code.
-
-## 👉  `npm run build`
-- Use to build production code for your block inside `build` folder.
-- Runs once and reports back the gzip file sizes of the produced code.
-
-
-### React Financial Charts
-This project uses React Financial Charts to render the time series:
-https://github.com/reactivemarkets/react-financial-charts
-
-
-### Build Tooling
-
-This project uses modern `@wordpress/scripts` tooling for block build and development workflows.
-
----
-
-## Clone traffic
-
-![Clone traffic](https://raw.githubusercontent.com/nikolareljin/stats/main/charts/gutenberg-stocks.svg)
-
-_Updated daily. Total and unique cloners over the last 14 days._
+Docs: `docs/adding-a-provider.md`, `docs/rest-api.md`, `docs/caching.md`.
+WP.org page assets live in `.wordpress-org/` (never in the ZIP).
