@@ -73,7 +73,7 @@ info "Activating plugin…"
 $compose run --rm wpcli sh -lc "wp plugin activate nr-stocks || wp plugin activate nr-stocks --network"
 
 info "Setting keyless default provider (Frankfurter, full option shape)…"
-$compose run --rm wpcli sh -lc "wp option update nr_stocks_settings '{\"default_provider\":\"frankfurter\",\"keys\":{\"alphavantage\":\"\",\"twelvedata\":\"\",\"coingecko\":\"\"},\"ttls\":{\"series\":300,\"quote\":60,\"search\":3600},\"line_color\":\"#0b163b\",\"rest_rate_limit\":60,\"rest_cors_origins\":[],\"av_host\":\"\",\"av_entrypoint\":\"\"}' --format=json"
+$compose run --rm wpcli sh -lc "wp option update nr_stocks_settings '{\"default_provider\":\"frankfurter\",\"keys\":{\"alphavantage\":\"\",\"twelvedata\":\"\",\"coingecko\":\"\"},\"ttls\":{\"series\":300,\"quote\":60,\"search\":3600},\"line_color\":\"#0b163b\",\"rest_rate_limit\":60,\"rest_miss_limit\":30,\"rest_cors_origins\":[],\"av_host\":\"\",\"av_entrypoint\":\"\"}' --format=json"
 
 info "Creating fixture posts (block + shortcode)…"
 BLOCK_POST=$($compose run --rm wpcli sh -lc "wp post create --post_type=post --post_status=publish --post_title='NR Stocks block' --post_content='<!-- wp:nr-stocks/stock-chart {\"symbols\":[\"EUR/USD\"],\"provider\":\"frankfurter\",\"showQuote\":true} /-->' --porcelain")
@@ -132,6 +132,61 @@ check "first two requests allowed" test "${Q1_CODE}${Q2_CODE}" = "200200"
 LIMIT_JSON="$(curl -sSL "${BASE_URL}/wp-json/nr-stocks/v1/quote?provider=frankfurter&symbols=EUR/USD")"
 check "third request rate limited" grep -q 'nr_stocks_rate_limited' <<<"${LIMIT_JSON}"
 $compose run --rm wpcli sh -lc "wp option patch update nr_stocks_settings rest_rate_limit 60" >/dev/null
+
+info "Checking CORS on plugin routes…"
+CORS_ROUTE="${BASE_URL}/wp-json/nr-stocks/v1/providers"
+UNLISTED_HEADERS="$(curl -fsSL -D - -o /dev/null -H 'Origin: https://unlisted.example' "${CORS_ROUTE}")"
+if grep -qi '^access-control-allow-origin:' <<<"${UNLISTED_HEADERS}"; then
+  err "FAIL: unlisted origin was allowed"
+  fail=1
+else
+  info "PASS: unlisted origin refused"
+fi
+$compose run --rm wpcli sh -lc "wp option patch update nr_stocks_settings rest_cors_origins --format=json '[\"app.example.test\"]'" >/dev/null
+LISTED_HEADERS="$(curl -fsSL -D - -o /dev/null -H 'Origin: https://app.example.test' "${CORS_ROUTE}")"
+check "listed origin allowed" grep -qi '^access-control-allow-origin: https://app.example.test' <<<"${LISTED_HEADERS}"
+if grep -qi '^access-control-allow-credentials:' <<<"${LISTED_HEADERS}"; then
+  err "FAIL: credentials allowed cross-origin"
+  fail=1
+else
+  info "PASS: credentials not allowed cross-origin"
+fi
+CORE_HEADERS="$(curl -fsSL -D - -o /dev/null -H 'Origin: https://unlisted.example' "${BASE_URL}/wp-json/wp/v2/types")"
+check "core routes keep their CORS headers" grep -qi '^access-control-allow-origin: https://unlisted.example' <<<"${CORE_HEADERS}"
+
+info "Checking saved 0.x chart loads the view script…"
+LEGACY_POST=$($compose run --rm wpcli sh -lc "wp post create --post_type=post --post_status=publish --post_title='NR Stocks legacy' --post_content='<div class=\"stock-information-item\" data-symbol=\"IBM\"></div>' --porcelain")
+LEGACY_HTML="$(curl -fsSL "${BASE_URL}/?p=${LEGACY_POST}")"
+check "legacy post loads view script" grep -q 'nr-stocks-view-js' <<<"${LEGACY_HTML}"
+check "legacy post gets the REST URL" grep -q 'window.nrStocks' <<<"${LEGACY_HTML}"
+
+info "Checking settings save and purge through wp-admin…"
+COOKIES="$(mktemp)"
+curl -fsS -o /dev/null -c "${COOKIES}" -b 'wordpress_test_cookie=WP+Cookie+check' \
+  --data-urlencode "log=${ADMIN_USER}" --data-urlencode "pwd=${ADMIN_PASS}" \
+  --data-urlencode 'testcookie=1' "${BASE_URL}/wp-login.php"
+SETTINGS_URL="${BASE_URL}/wp-admin/options-general.php?page=nr-stocks"
+SETTINGS_HTML="$(curl -fsS -b "${COOKIES}" "${SETTINGS_URL}")"
+check "settings page has one settings form" test "$(grep -c '<form method="post" action="options.php"' <<<"${SETTINGS_HTML}" || true)" = "1"
+SAVE_NONCE="$(sed -n 's/.*name="_wpnonce" value="\([a-f0-9]*\)".*/\1/p' <<<"${SETTINGS_HTML}" | sed -n 1p)"
+PURGE_NONCE="$(sed -n 's/.*name="_wpnonce" value="\([a-f0-9]*\)".*/\1/p' <<<"${SETTINGS_HTML}" | sed -n 2p)"
+curl -fsS -o /dev/null -b "${COOKIES}" -e "${SETTINGS_URL}" \
+  -d option_page=nr_stocks -d action=update --data-urlencode "_wpnonce=${SAVE_NONCE}" \
+  --data-urlencode "_wp_http_referer=/wp-admin/options-general.php?page=nr-stocks" \
+  --data-urlencode 'nr_stocks_settings[default_provider]=frankfurter' \
+  --data-urlencode 'nr_stocks_settings[line_color]=#123456' \
+  --data-urlencode 'nr_stocks_settings[rest_rate_limit]=60' \
+  "${BASE_URL}/wp-admin/options.php"
+SAVED_COLOR="$($compose run --rm wpcli sh -lc "wp option pluck nr_stocks_settings line_color" | tr -d '\r')"
+check "settings save persists" test "${SAVED_COLOR}" = "#123456"
+PURGE_LOCATION="$(curl -sS -o /dev/null -D - -b "${COOKIES}" -e "${SETTINGS_URL}" \
+  -d action=nr_stocks_purge_cache --data-urlencode "_wpnonce=${PURGE_NONCE}" \
+  --data-urlencode "_wp_http_referer=/wp-admin/options-general.php?page=nr-stocks" \
+  "${BASE_URL}/wp-admin/admin-post.php" | grep -i '^location:' | tr -d '\r' | sed 's/^[^ ]* //')"
+check "purge redirects with the success flag" grep -q 'nr-stocks-purged=1' <<<"${PURGE_LOCATION}"
+PURGED_HTML="$(curl -fsS -b "${COOKIES}" "${PURGE_LOCATION}")"
+check "purge shows a success notice" grep -q 'The stock cache was purged' <<<"${PURGED_HTML}"
+rm -f "${COOKIES}"
 
 info "Checking WP-CLI commands…"
 check "cli providers" $compose run --rm wpcli sh -lc "wp nr-stocks providers | grep -q frankfurter"

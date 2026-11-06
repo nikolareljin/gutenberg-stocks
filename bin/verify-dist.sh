@@ -59,6 +59,11 @@ for required in nr-stocks.php readme.txt uninstall.php languages/nr-stocks.pot \
   fi
 done
 
+# An empty POT would pass the existence check above.
+if [ ! -s "${DIST_DIR}/languages/nr-stocks.pot" ]; then
+  violation "languages/nr-stocks.pot is empty"
+fi
+
 # 6. Version consistency across the four manifests.
 bootstrap_version="$(grep -m1 -E '^[[:space:]]*\*[[:space:]]*Version:' "${DIST_DIR}/nr-stocks.php" | sed -E 's/.*Version:[[:space:]]*([0-9]+\.[0-9]+\.[0-9]+).*/\1/' || true)"
 stable_tag="$(grep -m1 -E '^Stable tag:' "${DIST_DIR}/readme.txt" | sed -E 's/.*Stable tag:[[:space:]]*([0-9]+\.[0-9]+\.[0-9]+).*/\1/' || true)"

@@ -16,3 +16,12 @@ jobs:
     uses: nikolareljin/ci-helpers/.github/workflows/create-github-release.yml@production
     with:
       release_tag: ${{ inputs.release_tag }}
+
+  deploy:
+    needs: release
+    uses: ./.github/workflows/deploy.yml
+    permissions:
+      contents: read
+    secrets:
+      SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+      SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}

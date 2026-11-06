@@ -3,7 +3,17 @@ name: I18N POT
 on:
   push:
     branches: [master]
+    paths:
+      - 'inc/**'
+      - 'src/**'
+      - 'nr-stocks.php'
+      - 'bin/make-pot.sh'
+      - '.github/workflows/i18n.yml'
   workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -17,9 +27,8 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Generate POT file
-        # Same generator as local development (bin/make-pot.sh): identical
-        # flags plus header normalization, so the bot only proposes PRs
-        # for real string changes instead of every run.
+        # Same generator as local development. The output has no line
+        # references or volatile headers, so only string changes differ.
         run: bash bin/make-pot.sh
 
       - name: Upload POT artifact
@@ -29,7 +38,7 @@ jobs:
           path: languages/nr-stocks.pot
 
       - name: Create POT update PR
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c # v6.1.0
         with:
           commit-message: "chore(i18n): update POT"
           title: "Update POT for translations"

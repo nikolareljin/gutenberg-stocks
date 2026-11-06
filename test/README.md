@@ -20,7 +20,8 @@ Port / version configuration
 - `NRSTX_TEST_PORT` (default 8080) — host port.
 - `NRSTX_WP_VERSION` (default latest) — WordPress image tag, e.g. `6.3`.
 - `NRSTX_PLUGIN_SRC` — override the mounted plugin source (used by
-  plugin-check.sh to mount the dist copy).
+  plugin-check.sh to mount the dist copy). `bin/make-pot.sh` does not use
+  this stack; it runs in the bare WP-CLI image.
 
 Quick start
 -----------
