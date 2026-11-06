@@ -2,6 +2,31 @@
 
 All notable changes to this project are documented in this file.
 
+## [Unreleased]
+
+### Fixed
+
+- Settings page: Save now submits every field. The purge button moved to its own form below the settings, with a success notice.
+- 0.x settings migrate when the plugin is activated, and sites where 1.0.0 already seeded defaults over them are repaired.
+- Saved 0.x charts load the view script and use the site's real REST URL, including plain permalinks and subdirectory installs.
+- The quote panel and a comparison legend now appear on the frontend.
+- Alpha Vantage JSON notes on CSV calls report `upstream_limit` or `upstream_error` instead of an empty cached result.
+- Saving settings before the option exists no longer corrupts the cross-origin host list.
+- A block or shortcode with no symbols renders nothing instead of an error notice and a PHP warning.
+- Parallel requests for the same uncached data make one upstream call. Waiters report `busy` after 3 seconds.
+- Editor preview reports symbols with no data, and typing in search no longer leaves it loading.
+- Uninstall removes the cache index option. Remaining editor and chart labels are translatable.
+
+### Changed
+
+- REST: the cross-origin host list now applies to `nr-stocks/v1` routes, and credentials are not allowed cross-origin.
+- REST: the `ttl` parameter applies only to logged-in editors, and unknown `interval` values share the default cache entry.
+- REST: nearby `range` values share one upstream call, and logged-out cache misses have a site-wide budget (Settings → NR Stocks, default 30 per minute).
+- REST: the rate limit uses a fixed window, and proxies can supply the client address through the `nr_stocks_client_ip` filter.
+- REST: responses with a failed symbol send `max-age=0`.
+- WordPress.org deploy runs after the GitHub Release for automated tags. With no SVN repository yet it verifies the payload and skips the upload.
+- POT generation runs in the bare WP-CLI image, has no line references, and leaves the existing file in place on failure.
+
 ## [1.0.0] - 2026-11-05
 
 ### Added

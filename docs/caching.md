@@ -6,8 +6,8 @@ fetch at all: the block/shortcode render bakes data into the markup.
 
 ## TTL layers (highest priority first)
 
-1. Per-request override: block attribute `cacheTtl` / REST `ttl` param /
-   shortcode `ttl=""` (seconds, `0` = inherit).
+1. Per-request override: block attribute `cacheTtl` / shortcode `ttl=""` /
+   REST `ttl` param for logged-in editors (seconds, `0` = inherit).
 2. Saved per-endpoint setting: Settings → NR Stocks → Caching.
 3. Built-in defaults: series 300s (5 min), quote 60s (1 min), search 3600s.
 
@@ -22,8 +22,11 @@ endpoint (not recommended in production).
   get persistent, shared caching for free; the settings screen reports
   whether one was detected.
 - Stampede protection: a 15s fetch mutex (atomic `wp_cache_add` under
-  object caching, advisory transient otherwise) — parallel cold requests
-  trigger one upstream fetch.
+  object caching, advisory transient otherwise). Parallel cold requests wait
+  up to 3s for the fetch in progress, then report `busy` instead of adding
+  another upstream call.
+- Ranges share entries: upstream requests use 30, 90, 180, or 365 points and
+  each response is sliced to the requested `range`.
 - Errors cached 60s (negative cache), so a dead upstream degrades instead
   of melting quotas.
 - Purge: the settings button, saving settings, `wp nr-stocks cache purge`,
@@ -41,5 +44,6 @@ endpoint (not recommended in production).
    older data is acceptable; keep `Cache-Control` in mind for CDN layers.
 3. Warm important symbols after deploys:
    `wp nr-stocks fetch --provider=… --symbol=…` (also useful in cron).
-4. Keep the REST rate limit on (default 60/min/IP) and the CORS allowlist
-   tight; both live under Settings → NR Stocks → REST API.
+4. Keep the REST rate limit on (default 60/min/IP), size the anonymous
+   upstream budget (default 30/min) to your provider's quota, and keep the
+   CORS allowlist tight; all three live under Settings → NR Stocks → REST API.

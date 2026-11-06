@@ -8,17 +8,25 @@ Base: `https://example.com/wp-json/nr-stocks/v1`
 ## Common behavior
 
 - Methods: `GET` only. Auth: none (public read). Throttling: per-IP +
-  route transient bucket, default 60/min (setting 0..3600, 0 = off);
+  route fixed window, default 60/min (setting 0..3600, 0 = off);
   over-limit answers are `nr_stocks_rate_limited` (HTTP 429) with a
-  `retry_after` hint.
-- Headers on success: `Cache-Control: public, max-age=<ttl>`,
+  `retry_after` hint. Behind a proxy or CDN, return the visitor address from
+  the `nr_stocks_client_ip` filter; forwarded headers are not trusted by
+  default.
+- Upstream budget: logged-out requests share a site-wide budget of cache
+  misses, default 30/min (setting 0..3600, 0 = off). Past it, uncached
+  symbols report `upstream_budget`. Cached data keeps being served.
+- Headers on success: `Cache-Control: public, max-age=<ttl>` (`max-age=0`
+  when any symbol failed),
   `ETag: "<md5>"`, `X-NR-Stocks-Cache: HIT|MISS`.
 - CORS: same-origin always works. Cross-origin browsers are allowed only
-  for hosts listed under Settings → NR Stocks → REST API.
+  for hosts listed under Settings → NR Stocks → REST API, without
+  credentials. This applies to `nr-stocks/v1` routes only.
 - Params: `provider` (id, default = saved default), `symbols` CSV and/or
   `symbol` (max 5, cleaned server-side), `series` (daily|weekly|monthly|
-  intraday), `range` 1..365 (default 30), `interval` (intraday only),
-  `ttl` override in seconds (0 = site default).
+  intraday), `range` 1..365 (default 30), `interval` (intraday only;
+  unknown values use 15min), `ttl` override in seconds (0 = site default;
+  honored only for logged-in users who can edit posts).
 
 ## `GET /providers`
 
@@ -69,7 +77,9 @@ curl 'https://example.com/wp-json/nr-stocks/v1/series?provider=frankfurter&symbo
 Per-symbol failures stay per-symbol: `{ok:false, error:"upstream_limit"}`
 with the machine-readable codes from `Rest_Provider` (unknown_provider,
 missing_key, bad_symbol, unsupported_series/asset/pair, forbidden_host,
-http_error, upstream_error, upstream_limit, parse_error).
+http_error, upstream_error, upstream_limit, upstream_budget, busy,
+parse_error). `busy` means another request is already fetching the same data
+and did not finish in time; retry shortly.
 
 ## `GET /quote`
 
@@ -123,7 +133,8 @@ Up to 10 matches.
   error}` inside `data`) so partial results still return.
 - 400 — `nr_stocks_bad_symbol`, `nr_stocks_unknown_provider`,
   `nr_stocks_unsupported_*`, `rest_invalid_param`.
-- 429 — `nr_stocks_rate_limited` (ours) or `nr_stocks_upstream_limit`.
-- 503 — `nr_stocks_missing_key` (search route; series/quote report it
-  per-symbol).
+- 429 — `nr_stocks_rate_limited` (ours), `nr_stocks_upstream_limit`, or
+  `nr_stocks_upstream_budget` (search route).
+- 503 — `nr_stocks_missing_key` or `nr_stocks_busy` (search route;
+  series/quote report them per-symbol).
 - 502 — upstream/parse failures on the search route.
