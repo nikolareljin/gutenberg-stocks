@@ -27,7 +27,10 @@ endpoint (not recommended in production).
   progress (`nr_stocks_lock_wait_ms` filter), then report `busy`.
 - Ranges share entries: upstream requests use 30, 90, 180, or 365 points and
   each response is sliced to the requested `range`. Each caller still applies
-  its own TTL, so a long per-block TTL does not freeze other charts.
+  its own TTL, so a long per-block TTL does not freeze other charts. An entry
+  past a caller's TTL but not yet expired is served when a refresh fails, is
+  over budget, or is still in progress, and a short-TTL refresh never shortens
+  the entry's lifetime.
 - A page where every symbol failed tells page caches not to store it.
 - Errors cached 60s (negative cache), so a dead upstream degrades instead
   of melting quotas.
@@ -35,8 +38,8 @@ endpoint (not recommended in production).
   or `Cache::purge_all()` (key index + options-table fallback; never a
   global object-cache flush).
 - HTTP: REST answers carry `Cache-Control: max-age=<ttl>`, an `ETag`, and
-  `X-NR-Stocks-Cache: HIT|MISS`. The frontend JS keeps an in-memory dedupe
-  map, so re-renders never refetch.
+  `X-NR-Stocks-Cache: HIT|MISS`. The frontend JS dedupes identical requests
+  while they are in flight.
 
 ## High-traffic recipe
 

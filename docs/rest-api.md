@@ -15,7 +15,8 @@ Base: `https://example.com/wp-json/nr-stocks/v1`
   default.
 - Upstream budget: logged-out requests share a site-wide budget of cache
   misses, default 30/min (setting 0..3600, 0 = off). Past it, uncached
-  symbols report `upstream_budget`. Cached data keeps being served.
+  symbols report `upstream_budget`. Cached data, including entries past their
+  normal TTL, keeps being served.
 - Headers on success for logged-out requests:
   `Cache-Control: public, max-age=<ttl>` (`no-store` when any symbol failed;
   core sends its own no-cache headers to logged-in users),

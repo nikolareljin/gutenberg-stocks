@@ -75,6 +75,33 @@ class NR_Stocks_Settings_Test extends WP_UnitTestCase {
 		$this->assertSame( 'AVKEY', Settings::get_key( 'alphavantage' ) );
 	}
 
+	public function test_saved_key_is_not_printed_and_survives_an_empty_save() {
+		$settings                      = new Settings();
+		$saved                         = Settings::defaults();
+		$saved['keys']['alphavantage'] = 'SECRETKEY';
+		update_option( NR_STOCKS_OPTION, $saved );
+
+		ob_start();
+		$settings->render_key_field( array( 'provider_id' => 'alphavantage' ) );
+		$html = (string) ob_get_clean();
+		$this->assertStringNotContainsString( 'SECRETKEY', $html );
+		$this->assertStringContainsString( 'keys_clear', $html );
+
+		$kept = $settings->sanitize( array( 'keys' => array( 'alphavantage' => '' ) ) );
+		$this->assertSame( 'SECRETKEY', $kept['keys']['alphavantage'] );
+
+		$replaced = $settings->sanitize( array( 'keys' => array( 'alphavantage' => 'NEWKEY' ) ) );
+		$this->assertSame( 'NEWKEY', $replaced['keys']['alphavantage'] );
+
+		$cleared = $settings->sanitize(
+			array(
+				'keys'       => array( 'alphavantage' => '' ),
+				'keys_clear' => array( 'alphavantage' => '1' ),
+			)
+		);
+		$this->assertSame( '', $cleared['keys']['alphavantage'] );
+	}
+
 	public function test_sanitize_is_stable_when_run_twice() {
 		$settings = new Settings();
 		$first    = $settings->sanitize( array( 'rest_cors_origins' => "app.example.com\nfoo.test" ) );

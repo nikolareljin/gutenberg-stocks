@@ -158,7 +158,7 @@ class NR_Stocks_Cache_Test extends WP_UnitTestCase {
 					),
 					'fetched_at' => time(),
 				);
-				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- simulates another process.
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- simulates another process.
 				$wpdb->insert(
 					$wpdb->options,
 					array(
@@ -167,7 +167,7 @@ class NR_Stocks_Cache_Test extends WP_UnitTestCase {
 						'autoload'     => 'off',
 					)
 				);
-				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- simulates another process.
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- simulates another process.
 				$wpdb->insert(
 					$wpdb->options,
 					array(
@@ -196,6 +196,109 @@ class NR_Stocks_Cache_Test extends WP_UnitTestCase {
 		$this->assertTrue( $result['ok'] );
 		$this->assertSame( array( 'from-other' ), $result['data'] );
 		$this->assertLessThan( 2, microtime( true ) - $started );
+	}
+
+	public function test_waiter_stops_when_the_holder_stored_nothing() {
+		global $wpdb;
+		$key = 'nrstx_phpunit_gone';
+		set_transient( $key . '_lock', 1, 15 );
+		$reads = 0;
+		// The holder ends without a result, as a separate process would.
+		$holder_exits = function ( $pre ) use ( &$reads, $key, $wpdb ) {
+			if ( 2 === ++$reads ) {
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- simulates another process.
+				$wpdb->delete( $wpdb->options, array( 'option_name' => '_transient_' . $key . '_lock' ) );
+			}
+			return $pre;
+		};
+		add_filter( 'pre_transient_' . $key, $holder_exits );
+		$started = microtime( true );
+		$result  = Cache::get_or_fetch(
+			$key,
+			300,
+			function () {
+				return array(
+					'ok'   => true,
+					'data' => array(),
+				);
+			}
+		);
+		remove_filter( 'pre_transient_' . $key, $holder_exits );
+
+		$this->assertSame( 'busy', $result['error'] );
+		$this->assertLessThan( 3, microtime( true ) - $started );
+	}
+
+	/**
+	 * Stores an entry older than a 300-second caller's limit.
+	 *
+	 * @param string $key Cache key.
+	 */
+	protected function seed_stale_entry( $key ) {
+		set_transient(
+			$key,
+			array(
+				'data'       => array(
+					'ok'   => true,
+					'data' => array( 'old' ),
+				),
+				'fetched_at' => time() - 600,
+				'expires_at' => time() + 80000,
+			),
+			80000
+		);
+	}
+
+	public function test_failed_refresh_keeps_the_valid_entry() {
+		$this->seed_stale_entry( 'nrstx_phpunit_keep' );
+		$result = Cache::get_or_fetch(
+			'nrstx_phpunit_keep',
+			300,
+			function () {
+				return array(
+					'ok'    => false,
+					'error' => 'upstream_limit',
+				);
+			}
+		);
+		$this->assertTrue( $result['ok'] );
+		$this->assertSame( array( 'old' ), $result['data'] );
+		$this->assertTrue( Cache::get( 'nrstx_phpunit_keep' )['data']['ok'] );
+		$this->assertFalse( get_transient( 'nrstx_phpunit_keep_lock' ) );
+	}
+
+	public function test_budget_refusal_serves_the_valid_entry() {
+		$this->seed_stale_entry( 'nrstx_phpunit_budget' );
+		Cache::set_fetch_guard( '__return_false' );
+		$result = Cache::get_or_fetch(
+			'nrstx_phpunit_budget',
+			300,
+			function () {
+				return array(
+					'ok'   => true,
+					'data' => array( 'new' ),
+				);
+			}
+		);
+		Cache::set_fetch_guard( null );
+		$this->assertSame( array( 'old' ), $result['data'] );
+	}
+
+	public function test_short_ttl_refresh_keeps_the_longer_expiry() {
+		$this->seed_stale_entry( 'nrstx_phpunit_expiry' );
+		Cache::get_or_fetch(
+			'nrstx_phpunit_expiry',
+			300,
+			function () {
+				return array(
+					'ok'   => true,
+					'data' => array( 'new' ),
+				);
+			}
+		);
+		$entry = Cache::get( 'nrstx_phpunit_expiry' );
+		$this->assertSame( array( 'new' ), $entry['data']['data'] );
+		$this->assertGreaterThan( time() + 70000, $entry['expires_at'] );
 	}
 
 	public function test_lock_is_released_after_fetching() {

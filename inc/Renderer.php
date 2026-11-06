@@ -111,7 +111,7 @@ class Renderer {
 
 		return sprintf(
 			'<figure class="nr-stocks" data-nr-stocks="1"><script type="application/json" class="nr-stocks-data">%s</script><div class="nr-stocks-canvas" role="img" aria-label="%s"></div><ul class="nr-stocks-fallback">%s</ul></figure>',
-			wp_json_encode( $payload ),
+			wp_json_encode( $payload, JSON_HEX_TAG | JSON_HEX_AMP ),
 			esc_attr__( 'Stock price chart', 'nr-stocks' ),
 			$fallback
 		);

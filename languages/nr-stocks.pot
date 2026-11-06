@@ -110,6 +110,12 @@ msgstr ""
 msgid "Pick the default data source and enter API keys. Keys stay on the server and are never sent to the browser."
 msgstr ""
 
+msgid "Saved. Enter a new key to replace it."
+msgstr ""
+
+msgid "Remove the saved key"
+msgstr ""
+
 msgid "Get a free API key"
 msgstr ""
 

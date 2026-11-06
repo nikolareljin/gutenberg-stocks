@@ -333,13 +333,22 @@ class Settings {
 		$settings = self::get();
 		$config   = Provider_Registry::get( $id );
 		$key_name = $config['key_setting'];
-		$value    = isset( $settings['keys'][ $key_name ] ) ? $settings['keys'][ $key_name ] : '';
+		$is_saved = ! empty( $settings['keys'][ $key_name ] );
+		// The saved value is never printed: an empty field keeps it on save.
 		printf(
-			'<input size="50" type="password" autocomplete="new-password" name="%s[keys][%s]" value="%s" />',
+			'<input size="50" type="password" autocomplete="new-password" name="%s[keys][%s]" value="" placeholder="%s" />',
 			esc_attr( NR_STOCKS_OPTION ),
 			esc_attr( $key_name ),
-			esc_attr( $value )
+			esc_attr( $is_saved ? __( 'Saved. Enter a new key to replace it.', 'nr-stocks' ) : '' )
 		);
+		if ( $is_saved ) {
+			printf(
+				'<p><label><input type="checkbox" name="%s[keys_clear][%s]" value="1" /> %s</label></p>',
+				esc_attr( NR_STOCKS_OPTION ),
+				esc_attr( $key_name ),
+				esc_html__( 'Remove the saved key', 'nr-stocks' )
+			);
+		}
 		if ( ! empty( $config['key_url'] ) ) {
 			printf(
 				'<p class="description"><a href="%s" target="_blank" rel="noopener">%s</a></p>',
@@ -482,11 +491,17 @@ class Settings {
 		$provider                  = isset( $input['default_provider'] ) ? sanitize_key( $input['default_provider'] ) : '';
 		$clean['default_provider'] = null !== Provider_Registry::get( $provider ) ? $provider : 'alphavantage';
 
-		if ( isset( $input['keys'] ) && is_array( $input['keys'] ) ) {
-			foreach ( $clean['keys'] as $name => $unused ) {
-				if ( isset( $input['keys'][ $name ] ) ) {
-					$clean['keys'][ $name ] = sanitize_text_field( $input['keys'][ $name ] );
-				}
+		$saved      = get_option( NR_STOCKS_OPTION, array() );
+		$saved_keys = is_array( $saved ) && isset( $saved['keys'] ) && is_array( $saved['keys'] ) ? $saved['keys'] : array();
+		$new_keys   = isset( $input['keys'] ) && is_array( $input['keys'] ) ? $input['keys'] : array();
+		$to_clear   = isset( $input['keys_clear'] ) && is_array( $input['keys_clear'] ) ? $input['keys_clear'] : array();
+		foreach ( $clean['keys'] as $name => $unused ) {
+			$new_key = isset( $new_keys[ $name ] ) ? sanitize_text_field( $new_keys[ $name ] ) : '';
+			if ( '' !== $new_key ) {
+				$clean['keys'][ $name ] = $new_key;
+			} elseif ( empty( $to_clear[ $name ] ) && isset( $saved_keys[ $name ] ) ) {
+				// Saved keys are not sent to the form, so an empty field keeps them.
+				$clean['keys'][ $name ] = (string) $saved_keys[ $name ];
 			}
 		}
 

@@ -54,6 +54,17 @@ class NR_Stocks_Shortcode_Test extends WP_UnitTestCase {
 		$this->assertSame( '', Nikolareljin\NrStocks\Block::render( array( 'symbols' => array() ) ) );
 	}
 
+	public function test_baked_payload_escapes_upstream_markup() {
+		update_option( NR_STOCKS_OPTION, array( 'keys' => array( 'twelvedata' => 'TESTTD' ) ) );
+		$body = str_replace( 'USD', '</script><b>', self::fixture( 'td_series.json' ) );
+		$this->mock_http( $body );
+		$html = do_shortcode( '[nr-stocks symbols="AAPL" provider="twelvedata"]' );
+		preg_match( '@<script type="application/json" class="nr-stocks-data">(.*?)</script>@s', $html, $match );
+		$this->assertNotEmpty( $match );
+		$this->assertStringNotContainsString( '<b>', $match[1] );
+		$this->assertStringContainsString( '</script><b>', json_decode( $match[1], true )['symbols']['AAPL']['currency'] );
+	}
+
 	public function test_legacy_markup_detection() {
 		$block = Nikolareljin\NrStocks\Block::class;
 		$this->assertTrue( $block::has_legacy_markup( '<div class="stock-information-item" data-symbol="IBM"></div>' ) );

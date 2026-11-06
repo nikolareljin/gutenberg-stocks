@@ -177,11 +177,18 @@ class Cache {
 		if ( $ttl <= 0 ) {
 			return;
 		}
+		// Entries are shared across TTLs: a short-TTL refresh must not shorten
+		// how long a longer-TTL caller can keep using the entry.
+		$prior = self::get( $key );
+		if ( null !== $prior && isset( $prior['expires_at'] ) ) {
+			$ttl = max( $ttl, (int) $prior['expires_at'] - time() );
+		}
 		set_transient(
 			$key,
 			array(
 				'data'       => $data,
 				'fetched_at' => time(),
+				'expires_at' => time() + $ttl,
 			),
 			$ttl
 		);
@@ -217,6 +224,8 @@ class Cache {
 		if ( null !== $hit && ( empty( $hit['ok'] ) || $hit['fetched_at'] + $ttl > time() ) ) {
 			return $hit;
 		}
+		// Past this caller's TTL but still valid: better than any failure below.
+		$stale = $hit;
 
 		if ( ! self::acquire_lock( $key ) ) {
 			// Another request owns the fetch: wait for its result instead of
@@ -236,13 +245,17 @@ class Cache {
 				if ( null !== $hit && ( empty( $hit['ok'] ) || $hit['fetched_at'] + $ttl > time() ) ) {
 					return $hit;
 				}
+				if ( ! self::lock_held( $key ) ) {
+					// The holder finished without storing a result for us.
+					break;
+				}
 			}
-			return self::failure( 'busy' );
+			return null !== $stale ? $stale : self::failure( 'busy' );
 		}
 
 		if ( ! self::fetch_allowed() ) {
 			self::release_lock( $key );
-			return self::failure( 'upstream_budget' );
+			return null !== $stale ? $stale : self::failure( 'upstream_budget' );
 		}
 
 		$result = call_user_func( $fetcher );
@@ -250,6 +263,11 @@ class Cache {
 		// The lock is released only after the result is stored, so a request
 		// arriving in between cannot start a second fetch.
 		if ( ! is_array( $result ) || empty( $result['ok'] ) ) {
+			if ( null !== $stale ) {
+				// Keep the valid entry instead of replacing it with an error.
+				self::release_lock( $key );
+				return $stale;
+			}
 			$error = is_array( $result ) && isset( $result['error'] ) ? (string) $result['error'] : 'fetch_failed';
 			set_transient(
 				$key,
@@ -397,6 +415,21 @@ class Cache {
 		}
 		set_transient( $lock, 1, self::LOCK_TTL );
 		return true;
+	}
+
+	/**
+	 * Whether another request still holds the fetch mutex.
+	 *
+	 * @param string $key Cache key.
+	 * @return bool
+	 */
+	protected static function lock_held( $key ) {
+		$lock = $key . '_lock';
+		if ( wp_using_ext_object_cache() ) {
+			return false !== wp_cache_get( $lock, '', true );
+		}
+		self::forget_local_copy( $lock );
+		return false !== get_transient( $lock );
 	}
 
 	/**

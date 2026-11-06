@@ -228,6 +228,12 @@ PURGE_LOCATION="$(curl -sS -o /dev/null -D - -b "${COOKIES}" -e "${SETTINGS_URL}
 check "purge redirects with the success flag" grep -q 'nr-stocks-purged=1' <<<"${PURGE_LOCATION}"
 PURGED_HTML="$(curl -fsS -b "${COOKIES}" "${PURGE_LOCATION}")"
 check "purge shows a success notice" grep -q 'The stock cache was purged' <<<"${PURGED_HTML}"
+if grep -q 'E2EKEY' <<<"${PURGED_HTML}"; then
+  err "FAIL: saved API key reached the browser"
+  fail=1
+else
+  info "PASS: saved API key stays on the server"
+fi
 rm -f "${COOKIES}"
 
 info "Checking WP-CLI commands…"
