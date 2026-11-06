@@ -1,0 +1,15 @@
+# Gitleaks config for NR Stocks. Test fixtures intentionally contain
+# synthetic provider payloads and demo-shaped values, so they are excluded;
+# every other path is scanned with the default ruleset.
+title = "nr-stocks"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "synthetic fixtures for provider/REST tests"
+paths = [
+  '''tests/phpunit/fixtures/.*''',
+  '''tests/js/fixtures/.*''',
+  '''test/fixtures/.*''',
+]

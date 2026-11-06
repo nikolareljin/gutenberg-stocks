@@ -1,0 +1,29 @@
+name: Scans
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  gitleaks:
+    uses: nikolareljin/ci-helpers/.github/workflows/gitleaks-scan.yml@production
+    with:
+      config_path: .gitleaks.toml
+      fail_on_findings: true
+      upload_artifact: true
+
+  trivy:
+    uses: nikolareljin/ci-helpers/.github/workflows/trivy-scan.yml@production
+    with:
+      severity: CRITICAL,HIGH
+      fail_on_findings: false
+      upload_sarif: true

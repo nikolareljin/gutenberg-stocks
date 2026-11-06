@@ -1,0 +1,18 @@
+{
+  "data": [
+    {
+      "symbol": "AAPL",
+      "instrument_name": "Apple Inc.",
+      "exchange": "NASDAQ",
+      "instrument_type": "Common Stock",
+      "currency": "USD"
+    },
+    {
+      "symbol": "APC",
+      "instrument_name": "Apple Inc.",
+      "exchange": "XETR",
+      "instrument_type": "Common Stock",
+      "currency": "EUR"
+    }
+  ]
+}

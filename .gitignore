@@ -1,12 +1,17 @@
-node_modules
-
-## Uncomment line below if you prefer to
-## keep compiled files out of version control
-dist/
+node_modules/
 vendor/
+# Local working-state file. NEVER commit, NEVER ship.
+PLAN.md
+build/
+.build/
+dist/
+test/tmp/
+.phpunit.result.cache
+package-lock.json
 composer.lock
-
-/ignore/
+languages/*.po
+languages/*.mo
+*.log
 
 # Ignore Claude memory files outside the repo root
 CLAUDE.md

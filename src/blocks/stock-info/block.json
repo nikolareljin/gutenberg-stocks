@@ -1,0 +1,44 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "nr-stocks/stock-chart",
+  "title": "Stock Chart",
+  "category": "widgets",
+  "icon": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\"><rect width=\"24\" height=\"24\" rx=\"5\" fill=\"#0b163b\"/><path d=\"M5 16 L9 12.5 L11.5 13.8 L15.5 8.5 L19 10\" stroke=\"#6fa4fc\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" fill=\"none\"/><circle cx=\"19\" cy=\"10\" r=\"1.6\" fill=\"#fff\"/></svg>",
+  "description": "Stock, forex, and crypto charts from swappable data providers.",
+  "attributes": {
+    "symbols": {
+      "type": "array",
+      "default": []
+    },
+    "provider": {
+      "type": "string",
+      "default": ""
+    },
+    "series": {
+      "type": "string",
+      "default": "daily"
+    },
+    "range": {
+      "type": "number",
+      "default": 30
+    },
+    "showQuote": {
+      "type": "boolean",
+      "default": false
+    },
+    "cacheTtl": {
+      "type": "number",
+      "default": 0
+    }
+  },
+  "supports": {
+    "align": ["wide", "full"],
+    "html": false
+  },
+  "textdomain": "nr-stocks",
+  "editorScript": "file:./index.js",
+  "editorStyle": "file:./index.css",
+  "style": "file:./style-index.css",
+  "viewScript": "file:./view.js"
+}

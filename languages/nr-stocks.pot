@@ -1,0 +1,236 @@
+# Copyright (C) 2026 Nik Reljin
+# This file is distributed under the GPLv2 or later.
+msgid ""
+msgstr ""
+"Project-Id-Version: NR Stocks 1.0.0\n"
+"Report-Msgid-Bugs-To: https://github.com/nikolareljin/gutenberg-stocks/issues\n"
+"Last-Translator: FULL NAME\n"
+"Language-Team: LANGUAGE\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2026-11-05T19:36:17+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.12.0\n"
+"X-Domain: nr-stocks\n"
+
+#. Plugin Name of the plugin
+#: nr-stocks.php
+#: inc/Settings.php:111
+#: inc/Settings.php:112
+msgid "NR Stocks"
+msgstr ""
+
+#. Plugin URI of the plugin
+#: nr-stocks.php
+msgid "https://github.com/nikolareljin/gutenberg-stocks"
+msgstr ""
+
+#. Description of the plugin
+#: nr-stocks.php
+msgid "Stock, forex, and crypto charts for the block editor. Multiple data providers, server-side caching, shortcode, and a headless-ready REST API."
+msgstr ""
+
+#. Author of the plugin
+#: nr-stocks.php
+msgid "Nik Reljin"
+msgstr ""
+
+#. Author URI of the plugin
+#: nr-stocks.php
+msgid "https://profiles.wordpress.org/nreljin/"
+msgstr ""
+
+#: inc/Renderer.php:72
+msgid "Market data is unavailable right now. Please try again later."
+msgstr ""
+
+#. translators: %s: ticker symbol.
+#: inc/Renderer.php:90
+#, php-format
+msgid "%s: unavailable"
+msgstr ""
+
+#: inc/Renderer.php:106
+msgid "Stock price chart"
+msgstr ""
+
+#: inc/Settings.php:148
+msgid "Data Providers"
+msgstr ""
+
+#: inc/Settings.php:154
+msgid "Default provider"
+msgstr ""
+
+#. translators: %s: provider label.
+#: inc/Settings.php:167
+#, php-format
+msgid "%s API key"
+msgstr ""
+
+#: inc/Settings.php:181
+msgid "Alpha Vantage host override"
+msgstr ""
+
+#: inc/Settings.php:189
+msgid "Caching"
+msgstr ""
+
+#. translators: %s: endpoint name.
+#: inc/Settings.php:198
+#, php-format
+msgid "%s cache (seconds)"
+msgstr ""
+
+#: inc/Settings.php:209
+msgid "Purge cache"
+msgstr ""
+
+#: inc/Settings.php:217
+msgid "Display"
+msgstr ""
+
+#: inc/Settings.php:223
+msgid "Chart line color"
+msgstr ""
+
+#: inc/Settings.php:231
+msgid "REST API (headless use)"
+msgstr ""
+
+#: inc/Settings.php:237
+msgid "Rate limit (requests/minute/IP)"
+msgstr ""
+
+#: inc/Settings.php:244
+msgid "Allowed cross-origin hosts"
+msgstr ""
+
+#: inc/Settings.php:261
+msgid "NR Stocks Settings"
+msgstr ""
+
+#. translators: %s: provider label.
+#: inc/Settings.php:268
+#, php-format
+msgid "The default provider (%s) needs an API key. Enter one below, or pick a keyless provider such as Frankfurter."
+msgstr ""
+
+#: inc/Settings.php:292
+msgid "Pick the default data source and enter API keys. Keys stay on the server and are never sent to the browser."
+msgstr ""
+
+#: inc/Settings.php:335
+msgid "Get a free API key"
+msgstr ""
+
+#: inc/Settings.php:356
+msgid "Optional proxy mirror for Alpha Vantage. Leave empty for the official host."
+msgstr ""
+
+#: inc/Settings.php:365
+msgid "Upstream responses are cached per provider, endpoint, and parameters. Use 0 to disable caching for an endpoint (not recommended on busy sites)."
+msgstr ""
+
+#: inc/Settings.php:368
+msgid "A persistent object cache was detected: cached data survives across requests and scales well."
+msgstr ""
+
+#: inc/Settings.php:370
+msgid "No persistent object cache detected: entries live in the options table. High-traffic sites should add Redis or Memcached."
+msgstr ""
+
+#: inc/Settings.php:391
+msgid "Presets: 60 (1 min), 300 (5 min), 900 (15 min), 3600 (1 hour)."
+msgstr ""
+
+#: inc/Settings.php:404
+msgid "Purge Stock Cache"
+msgstr ""
+
+#: inc/Settings.php:427
+msgid "Read-only JSON endpoints under nr-stocks/v1 for decoupled frontends. Same-origin requests always work."
+msgstr ""
+
+#: inc/Settings.php:442
+msgid "0 means no limit. Applies per IP address and route."
+msgstr ""
+
+#: inc/Settings.php:458
+msgid "One host per line. Empty means browsers on other origins are refused."
+msgstr ""
+
+#: inc/Settings.php:520
+msgid "Settings saved. The stock cache was purged."
+msgstr ""
+
+#: inc/Settings.php:535
+msgid "You are not allowed to do that."
+msgstr ""
+
+#: inc/Settings.php:558
+msgid "Settings"
+msgstr ""
+
+#: src/blocks/stock-info/edit.js:175
+msgid "Data Source"
+msgstr ""
+
+#: src/blocks/stock-info/edit.js:177
+msgid "Provider"
+msgstr ""
+
+#: src/blocks/stock-info/edit.js:181
+msgid "Site default"
+msgstr ""
+
+#: src/blocks/stock-info/edit.js:195
+msgid "Keys are configured under Settings → NR Stocks."
+msgstr ""
+
+#: src/blocks/stock-info/edit.js:201
+msgid "Series"
+msgstr ""
+
+#: src/blocks/stock-info/edit.js:209
+msgid "Points to show"
+msgstr ""
+
+#: src/blocks/stock-info/edit.js:218
+msgid "Show quote panel"
+msgstr ""
+
+#: src/blocks/stock-info/edit.js:225
+msgid "Cache TTL (seconds, 0 = site default)"
+msgstr ""
+
+#: src/blocks/stock-info/edit.js:247
+msgid "Add symbol"
+msgstr ""
+
+#: src/blocks/stock-info/edit.js:248
+msgid "Type a company, pair, or coin…"
+msgstr ""
+
+#: src/blocks/stock-info/edit.js:286
+msgid "Remove symbol"
+msgstr ""
+
+#: src/blocks/stock-info/edit.js:300
+msgid "Preview unavailable. Check the provider key under Settings → NR Stocks."
+msgstr ""
+
+#: src/blocks/stock-info/edit.js:308
+msgid "Add at least one symbol to preview the chart."
+msgstr ""
+
+#: src/blocks/stock-info/block.json
+msgctxt "block title"
+msgid "Stock Chart"
+msgstr ""
+
+#: src/blocks/stock-info/block.json
+msgctxt "block description"
+msgid "Stock, forex, and crypto charts from swappable data providers."
+msgstr ""
