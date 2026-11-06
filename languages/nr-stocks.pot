@@ -1,45 +1,16 @@
-# Copyright (C) 2026 Nik Reljin
-# This file is distributed under the GPLv2 or later.
 msgid ""
 msgstr ""
-"Project-Id-Version: NR Stocks 1.0.0\n"
+"Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: https://github.com/nikolareljin/gutenberg-stocks/issues\n"
-"Last-Translator: FULL NAME\n"
-"Language-Team: LANGUAGE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-05T19:36:17+00:00\n"
+"POT-Creation-Date: 2026-11-06T03:46:23+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: nr-stocks\n"
-
-#. Plugin Name of the plugin
-#: nr-stocks.php
-#: inc/Settings.php:111
-#: inc/Settings.php:112
-msgid "NR Stocks"
-msgstr ""
-
-#. Plugin URI of the plugin
-#: nr-stocks.php
-msgid "https://github.com/nikolareljin/gutenberg-stocks"
-msgstr ""
-
-#. Description of the plugin
-#: nr-stocks.php
-msgid "Stock, forex, and crypto charts for the block editor. Multiple data providers, server-side caching, shortcode, and a headless-ready REST API."
-msgstr ""
-
-#. Author of the plugin
-#: nr-stocks.php
-msgid "Nik Reljin"
-msgstr ""
-
-#. Author URI of the plugin
-#: nr-stocks.php
-msgid "https://profiles.wordpress.org/nreljin/"
-msgstr ""
 
 #: inc/Renderer.php:72
 msgid "Market data is unavailable right now. Please try again later."
@@ -53,6 +24,11 @@ msgstr ""
 
 #: inc/Renderer.php:106
 msgid "Stock price chart"
+msgstr ""
+
+#: inc/Settings.php:111
+#: inc/Settings.php:112
+msgid "NR Stocks"
 msgstr ""
 
 #: inc/Settings.php:148
