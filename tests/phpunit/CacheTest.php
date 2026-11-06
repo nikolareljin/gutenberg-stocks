@@ -109,6 +109,62 @@ class NR_Stocks_Cache_Test extends WP_UnitTestCase {
 		$this->assertSame( 'busy', $result['error'] );
 	}
 
+	public function test_waiting_request_sees_a_result_stored_by_another_process() {
+		global $wpdb;
+		$key = 'nrstx_phpunit_wait';
+		set_transient( $key . '_lock', 1, 15 );
+		$reads = 0;
+		// Another request finishes after this one's first miss, writing straight
+		// to the database as a separate PHP process would.
+		$other_process = function ( $pre ) use ( &$reads, $key, $wpdb ) {
+			if ( 2 === ++$reads ) {
+				$value = array(
+					'data'       => array(
+						'ok'   => true,
+						'data' => array( 'from-other' ),
+					),
+					'fetched_at' => time(),
+				);
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- simulates another process.
+				$wpdb->insert(
+					$wpdb->options,
+					array(
+						'option_name'  => '_transient_timeout_' . $key,
+						'option_value' => time() + 300,
+						'autoload'     => 'off',
+					)
+				);
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- simulates another process.
+				$wpdb->insert(
+					$wpdb->options,
+					array(
+						'option_name'  => '_transient_' . $key,
+						'option_value' => maybe_serialize( $value ),
+						'autoload'     => 'off',
+					)
+				);
+			}
+			return $pre;
+		};
+		add_filter( 'pre_transient_' . $key, $other_process );
+		$started = microtime( true );
+		$result  = Cache::get_or_fetch(
+			$key,
+			300,
+			function () {
+				return array(
+					'ok'   => true,
+					'data' => array( 'must-not-fetch' ),
+				);
+			}
+		);
+		remove_filter( 'pre_transient_' . $key, $other_process );
+
+		$this->assertTrue( $result['ok'] );
+		$this->assertSame( array( 'from-other' ), $result['data'] );
+		$this->assertLessThan( 2, microtime( true ) - $started );
+	}
+
 	public function test_lock_is_released_after_fetching() {
 		$fetcher = function () {
 			return array(

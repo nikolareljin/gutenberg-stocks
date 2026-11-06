@@ -12,6 +12,10 @@ import {
 import { fetchSeries, sanitizeSymbol } from '../../shared/query';
 
 const renderFigure = ( figure ) => {
+	// The block and the shortcode enqueue separate handles for this bundle.
+	if ( figure.classList.contains( 'is-rendered' ) ) {
+		return;
+	}
 	const script = figure.querySelector( 'script.nr-stocks-data' );
 	if ( ! script ) {
 		return;

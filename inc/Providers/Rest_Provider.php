@@ -544,7 +544,14 @@ class Rest_Provider {
 				return self::csv_failure( $raw );
 			}
 			$rows = self::apply_map( $table, isset( $op['map'] ) ? $op['map'] : array(), $params, isset( $op['transforms'] ) ? $op['transforms'] : array() );
-			$rows = self::normalize_series( $rows );
+			$rows = array_values(
+				array_filter(
+					self::normalize_series( $rows ),
+					function ( $row ) {
+						return null !== $row['close'];
+					}
+				)
+			);
 			if ( empty( $rows ) ) {
 				return self::csv_failure( $raw );
 			}

@@ -274,6 +274,13 @@ class NR_Stocks_Rest_Provider_Test extends WP_UnitTestCase {
 		$this->assertSame( 'parse_error', $result['error'] );
 	}
 
+	public function test_csv_with_dates_but_no_close_is_a_parse_error() {
+		$this->mock_http( "timestamp,open\n2026-10-30,1\n" );
+		$result = Rest_Provider::series( 'alphavantage', 'IBM', 'daily', 30 );
+		$this->assertFalse( $result['ok'] );
+		$this->assertSame( 'parse_error', $result['error'] );
+	}
+
 	public function test_unknown_intervals_and_nearby_ranges_share_one_fetch() {
 		$this->mock_http( self::fixture( 'av_daily.csv' ) );
 		$first  = Rest_Provider::series( 'alphavantage', 'IBM', 'daily', 2, 'aaa' );

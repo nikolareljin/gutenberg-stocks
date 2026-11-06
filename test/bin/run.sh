@@ -133,6 +133,20 @@ LIMIT_JSON="$(curl -sSL "${BASE_URL}/wp-json/nr-stocks/v1/quote?provider=frankfu
 check "third request rate limited" grep -q 'nr_stocks_rate_limited' <<<"${LIMIT_JSON}"
 $compose run --rm wpcli sh -lc "wp option patch update nr_stocks_settings rest_rate_limit 60" >/dev/null
 
+info "Checking parallel cold requests share one fetch…"
+$compose run --rm wpcli sh -lc "wp nr-stocks cache purge" >/dev/null
+PARALLEL_URL="${BASE_URL}/wp-json/nr-stocks/v1/series?provider=frankfurter&symbols=USD/JPY&range=5"
+curl -sSL -o test/tmp/parallel-1.json "${PARALLEL_URL}" &
+curl -sSL -o test/tmp/parallel-2.json "${PARALLEL_URL}" &
+curl -sSL -o test/tmp/parallel-3.json "${PARALLEL_URL}" &
+wait
+if grep -q '"error":"busy"' test/tmp/parallel-1.json test/tmp/parallel-2.json test/tmp/parallel-3.json; then
+  err "FAIL: a waiting request reported busy instead of the fetched result"
+  fail=1
+else
+  info "PASS: waiting requests received the fetched result"
+fi
+
 info "Checking CORS on plugin routes…"
 CORS_ROUTE="${BASE_URL}/wp-json/nr-stocks/v1/providers"
 UNLISTED_HEADERS="$(curl -fsSL -D - -o /dev/null -H 'Origin: https://unlisted.example' "${CORS_ROUTE}")"
@@ -150,6 +164,20 @@ if grep -qi '^access-control-allow-credentials:' <<<"${LISTED_HEADERS}"; then
   fail=1
 else
   info "PASS: credentials not allowed cross-origin"
+fi
+PREFLIGHT_HEADERS="$(curl -sSL -D - -o /dev/null -X OPTIONS -H 'Origin: https://unlisted.example' -H 'Access-Control-Request-Method: GET' "${CORS_ROUTE}")"
+if grep -qi '^access-control-allow-origin:' <<<"${PREFLIGHT_HEADERS}"; then
+  err "FAIL: unlisted preflight was allowed"
+  fail=1
+else
+  info "PASS: unlisted preflight refused"
+fi
+CASE_HEADERS="$(curl -fsSL -D - -o /dev/null -H 'Origin: https://unlisted.example' "${BASE_URL}/wp-json/NR-Stocks/v1/providers")"
+if grep -qi '^access-control-allow-origin:' <<<"${CASE_HEADERS}"; then
+  err "FAIL: route case bypassed the allowlist"
+  fail=1
+else
+  info "PASS: route case does not bypass the allowlist"
 fi
 CORE_HEADERS="$(curl -fsSL -D - -o /dev/null -H 'Origin: https://unlisted.example' "${BASE_URL}/wp-json/wp/v2/types")"
 check "core routes keep their CORS headers" grep -qi '^access-control-allow-origin: https://unlisted.example' <<<"${CORE_HEADERS}"
@@ -174,11 +202,20 @@ curl -fsS -o /dev/null -b "${COOKIES}" -e "${SETTINGS_URL}" \
   -d option_page=nr_stocks -d action=update --data-urlencode "_wpnonce=${SAVE_NONCE}" \
   --data-urlencode "_wp_http_referer=/wp-admin/options-general.php?page=nr-stocks" \
   --data-urlencode 'nr_stocks_settings[default_provider]=frankfurter' \
+  --data-urlencode 'nr_stocks_settings[keys][alphavantage]=E2EKEY' \
+  --data-urlencode 'nr_stocks_settings[ttls][series]=900' \
   --data-urlencode 'nr_stocks_settings[line_color]=#123456' \
-  --data-urlencode 'nr_stocks_settings[rest_rate_limit]=60' \
+  --data-urlencode 'nr_stocks_settings[rest_rate_limit]=59' \
+  --data-urlencode 'nr_stocks_settings[rest_miss_limit]=29' \
+  --data-urlencode 'nr_stocks_settings[rest_cors_origins]=saved.example.test' \
   "${BASE_URL}/wp-admin/options.php"
-SAVED_COLOR="$($compose run --rm wpcli sh -lc "wp option pluck nr_stocks_settings line_color" | tr -d '\r')"
-check "settings save persists" test "${SAVED_COLOR}" = "#123456"
+SAVED="$($compose run --rm wpcli sh -lc "wp option get nr_stocks_settings --format=json" | tr -d '\r')"
+check "settings save persists the key" grep -q '"alphavantage":"E2EKEY"' <<<"${SAVED}"
+check "settings save persists the TTL" grep -q '"series":900' <<<"${SAVED}"
+check "settings save persists the color" grep -q '"line_color":"#123456"' <<<"${SAVED}"
+check "settings save persists the rate limit" grep -q '"rest_rate_limit":59' <<<"${SAVED}"
+check "settings save persists the budget" grep -q '"rest_miss_limit":29' <<<"${SAVED}"
+check "settings save persists the hosts" grep -q 'saved.example.test' <<<"${SAVED}"
 PURGE_LOCATION="$(curl -sS -o /dev/null -D - -b "${COOKIES}" -e "${SETTINGS_URL}" \
   -d action=nr_stocks_purge_cache --data-urlencode "_wpnonce=${PURGE_NONCE}" \
   --data-urlencode "_wp_http_referer=/wp-admin/options-general.php?page=nr-stocks" \

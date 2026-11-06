@@ -53,6 +53,15 @@ jobs:
           echo "dist directory contents:"
           ls -lah dist || true
 
+      - name: Require the tag to match the plugin version
+        if: github.ref_type == 'tag'
+        run: |
+          version="$(sed -nE 's/^[[:space:]]*\*[[:space:]]*Version:[[:space:]]*([0-9.]+).*/\1/p' nr-stocks.php | head -n 1)"
+          if [ "${GITHUB_REF_NAME}" != "${version}" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match plugin version ${version}."
+            exit 1
+          fi
+
       - name: Check if WP.org SVN repo exists
         run: |
           sudo apt-get update

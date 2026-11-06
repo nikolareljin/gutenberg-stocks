@@ -16,6 +16,7 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 $nr_stocks_options = array(
 	'nr_stocks_settings',
 	'nr_stocks_cache_index',
+	'nr_stocks_migrated',
 	// Legacy option key from the 0.x releases.
 	'stockinfo_options_api',
 );

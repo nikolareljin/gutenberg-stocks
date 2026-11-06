@@ -223,7 +223,8 @@ class Cache {
 			while ( $waited < self::LOCK_WAIT_MS ) {
 				usleep( self::LOCK_POLL_MS * 1000 );
 				$waited += self::LOCK_POLL_MS;
-				$hit     = self::read_response( $key );
+				self::forget_local_copy( $key );
+				$hit = self::read_response( $key );
 				if ( null !== $hit ) {
 					return $hit;
 				}
@@ -265,6 +266,24 @@ class Cache {
 		$result['cached']     = false;
 		$result['fetched_at'] = time();
 		return $result;
+	}
+
+	/**
+	 * Drops this request's cached view of an entry so the next read is fresh.
+	 *
+	 * Without an object cache, a missed read is remembered in `notoptions` for
+	 * the rest of the request, which would hide another process's result.
+	 *
+	 * @param string $key Cache key.
+	 */
+	protected static function forget_local_copy( $key ) {
+		if ( wp_using_ext_object_cache() ) {
+			wp_cache_get( $key, 'transient', true );
+			return;
+		}
+		wp_cache_delete( 'notoptions', 'options' );
+		wp_cache_delete( '_transient_' . $key, 'options' );
+		wp_cache_delete( '_transient_timeout_' . $key, 'options' );
 	}
 
 	/**

@@ -265,7 +265,9 @@ class NR_Stocks_Rest_Test extends WP_UnitTestCase {
 		$this->assertSame( 'deny', $routes::cors_decision( 'https://unlisted.example' ) );
 		$this->assertSame( 'deny', $routes::cors_decision( 'null' ) );
 		$this->assertSame( 'same', $routes::cors_decision( home_url() ) );
+		$this->assertSame( 'deny', $routes::cors_decision( home_url() . ':8443' ) );
 		$this->assertTrue( $routes::is_own_route( '/nr-stocks/v1/series' ) );
+		$this->assertTrue( $routes::is_own_route( '/NR-Stocks/v1/series' ) );
 		$this->assertFalse( $routes::is_own_route( '/wp/v2/posts' ) );
 	}
 }

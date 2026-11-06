@@ -35,7 +35,7 @@ sed -e 's/^"Last-Translator: .*"$/"Last-Translator: FULL NAME\\n"/' \
   "${OUT_DIR}/nr-stocks.pot" > "${OUT_DIR}/normalized.pot"
 
 # Only a complete result replaces the committed file.
-if ! grep -q '^msgid "NR Stocks"$' "${OUT_DIR}/normalized.pot"; then
+if [ "$(grep -c '^msgid ' "${OUT_DIR}/normalized.pot")" -lt 10 ]; then
   echo "[ERROR] Generated POT is incomplete; ${TARGET} left unchanged." 1>&2
   exit 1
 fi

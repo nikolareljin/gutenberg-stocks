@@ -18,6 +18,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Migration {
 
 	/**
+	 * Option recording that the 0.x settings were already migrated.
+	 *
+	 * @var string
+	 */
+	const DONE_OPTION = 'nr_stocks_migrated';
+
+	/**
 	 * Runs the migration when needed.
 	 *
 	 * Settings still equal to the seeded defaults were never saved by the
@@ -25,6 +32,9 @@ class Migration {
 	 * 1.0.0 activation seeded defaults before the migration could run.
 	 */
 	public static function maybe_migrate() {
+		if ( get_option( self::DONE_OPTION, false ) ) {
+			return;
+		}
 		$current = get_option( NR_STOCKS_OPTION, false );
 		// A seeded option may predate newer default keys, so compare the merge.
 		if ( false !== $current && ( ! is_array( $current ) || array_replace( Settings::defaults(), $current ) !== Settings::defaults() ) ) {
@@ -55,5 +65,6 @@ class Migration {
 			return;
 		}
 		update_option( NR_STOCKS_OPTION, $settings );
+		update_option( self::DONE_OPTION, 1 );
 	}
 }

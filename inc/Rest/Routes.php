@@ -192,7 +192,7 @@ class Routes {
 		 * @param WP_REST_Request $request Current request.
 		 */
 		$ip          = (string) apply_filters( 'nr_stocks_client_ip', $ip, $request );
-		$retry_after = Cache::throttle( 'nrstx_rl_' . md5( $ip . '|' . $request->get_route() ), $limit );
+		$retry_after = Cache::throttle( 'nrstx_rl_' . md5( $ip . '|' . strtolower( $request->get_route() ) ), $limit );
 		if ( $retry_after > 0 ) {
 			return new WP_Error(
 				'nr_stocks_rate_limited',
@@ -534,7 +534,22 @@ class Routes {
 	 * @return bool
 	 */
 	public static function is_own_route( $route ) {
-		return 0 === strpos( (string) $route, '/' . NR_STOCKS_REST_NAMESPACE . '/' );
+		// Core matches routes case-insensitively, so /NR-Stocks/v1 reaches us too.
+		return 0 === strpos( strtolower( (string) $route ), '/' . NR_STOCKS_REST_NAMESPACE . '/' );
+	}
+
+	/**
+	 * Host and effective port of a URL.
+	 *
+	 * @param string $url URL.
+	 * @return string
+	 */
+	protected static function host_and_port( $url ) {
+		$parts = wp_parse_url( $url );
+		$host  = isset( $parts['host'] ) ? strtolower( $parts['host'] ) : '';
+		$https = isset( $parts['scheme'] ) && 'https' === strtolower( $parts['scheme'] );
+		$port  = isset( $parts['port'] ) ? (int) $parts['port'] : ( $https ? 443 : 80 );
+		return $host . ':' . $port;
 	}
 
 	/**
@@ -548,11 +563,7 @@ class Routes {
 		if ( '' === $host ) {
 			return 'deny';
 		}
-		$own = array(
-			strtolower( (string) wp_parse_url( home_url(), PHP_URL_HOST ) ),
-			strtolower( (string) wp_parse_url( site_url(), PHP_URL_HOST ) ),
-		);
-		if ( in_array( $host, $own, true ) ) {
+		if ( in_array( self::host_and_port( $origin ), array( self::host_and_port( home_url() ), self::host_and_port( site_url() ) ), true ) ) {
 			return 'same';
 		}
 		$settings = Settings::get();
