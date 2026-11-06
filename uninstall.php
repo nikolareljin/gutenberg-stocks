@@ -21,6 +21,14 @@ $nr_stocks_options = array(
 	'stockinfo_options_api',
 );
 
+// Under an object cache, transients live outside the options table.
+$nr_stocks_index = get_option( 'nr_stocks_cache_index', array() );
+if ( is_array( $nr_stocks_index ) ) {
+	foreach ( array_keys( $nr_stocks_index ) as $nr_stocks_key ) {
+		delete_transient( $nr_stocks_key );
+	}
+}
+
 foreach ( $nr_stocks_options as $nr_stocks_option ) {
 	delete_option( $nr_stocks_option );
 }

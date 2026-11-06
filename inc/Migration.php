@@ -38,6 +38,8 @@ class Migration {
 		$current = get_option( NR_STOCKS_OPTION, false );
 		// A seeded option may predate newer default keys, so compare the merge.
 		if ( false !== $current && ( ! is_array( $current ) || array_replace( Settings::defaults(), $current ) !== Settings::defaults() ) ) {
+			// Saved settings win now and later, even if they return to defaults.
+			update_option( self::DONE_OPTION, 1 );
 			return;
 		}
 		$old = get_option( 'stockinfo_options_api', array() );

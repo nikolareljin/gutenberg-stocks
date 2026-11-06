@@ -279,7 +279,6 @@ class Settings {
 					<p><?php esc_html_e( 'The stock cache was purged.', 'nr-stocks' ); ?></p>
 				</div>
 			<?php endif; ?>
-			<?php settings_errors( 'nr_stocks_messages' ); ?>
 			<form method="post" action="options.php">
 				<?php
 				settings_fields( 'nr_stocks' );

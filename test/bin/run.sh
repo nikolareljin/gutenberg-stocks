@@ -131,6 +131,9 @@ Q2_CODE="$(curl -sSL -o /dev/null -w "%{http_code}" "${BASE_URL}/wp-json/nr-stoc
 check "first two requests allowed" test "${Q1_CODE}${Q2_CODE}" = "200200"
 LIMIT_JSON="$(curl -sSL "${BASE_URL}/wp-json/nr-stocks/v1/quote?provider=frankfurter&symbols=EUR/USD")"
 check "third request rate limited" grep -q 'nr_stocks_rate_limited' <<<"${LIMIT_JSON}"
+LIMIT_HEADERS="$(curl -sSL -D - -o /dev/null "${BASE_URL}/wp-json/nr-stocks/v1/quote?provider=frankfurter&symbols=EUR/USD")"
+check "limited response is not stored" grep -qi '^cache-control: no-store' <<<"${LIMIT_HEADERS}"
+check "limited response sends Retry-After" grep -qi '^retry-after: [0-9]' <<<"${LIMIT_HEADERS}"
 $compose run --rm wpcli sh -lc "wp option patch update nr_stocks_settings rest_rate_limit 60" >/dev/null
 
 info "Checking parallel cold requests share one fetch…"
@@ -179,6 +182,8 @@ if grep -qi '^access-control-allow-origin:' <<<"${CASE_HEADERS}"; then
 else
   info "PASS: route case does not bypass the allowlist"
 fi
+JSONP_CODE="$(curl -sSL -o /dev/null -w '%{http_code}' "${CORS_ROUTE}?_jsonp=callback")"
+check "JSONP refused on plugin routes" test "${JSONP_CODE}" = "400"
 CORE_HEADERS="$(curl -fsSL -D - -o /dev/null -H 'Origin: https://unlisted.example' "${BASE_URL}/wp-json/wp/v2/types")"
 check "core routes keep their CORS headers" grep -qi '^access-control-allow-origin: https://unlisted.example' <<<"${CORE_HEADERS}"
 

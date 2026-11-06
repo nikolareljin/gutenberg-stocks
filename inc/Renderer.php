@@ -70,6 +70,7 @@ class Renderer {
 		}
 
 		if ( count( $symbols ) === $failed ) {
+			self::prevent_page_caching();
 			return sprintf(
 				'<div class="nr-stocks nr-stocks-error" data-error="%s"><p>%s</p></div>',
 				esc_attr( reset( $symbols )['error'] ),
@@ -114,6 +115,19 @@ class Renderer {
 			esc_attr__( 'Stock price chart', 'nr-stocks' ),
 			$fallback
 		);
+	}
+
+	/**
+	 * Keeps a temporary failure notice out of page caches.
+	 */
+	protected static function prevent_page_caching() {
+		if ( ! defined( 'DONOTCACHEPAGE' ) ) {
+			// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedConstantFound -- convention read by page-cache plugins.
+			define( 'DONOTCACHEPAGE', true );
+		}
+		if ( ! headers_sent() ) {
+			nocache_headers();
+		}
 	}
 
 	/**

@@ -113,6 +113,19 @@ class NR_Stocks_Migration_Test extends WP_UnitTestCase {
 		$this->assertSame( '', Settings::get()['keys']['alphavantage'] );
 	}
 
+	public function test_restoring_defaults_later_does_not_migrate() {
+		$saved                         = Settings::defaults();
+		$saved['keys']['alphavantage'] = 'NEWKEY';
+		update_option( NR_STOCKS_OPTION, $saved );
+		update_option( 'stockinfo_options_api', array( 'stockinfo_api_token' => 'OLDKEY' ) );
+		Migration::maybe_migrate();
+
+		update_option( NR_STOCKS_OPTION, Settings::defaults() );
+		Migration::maybe_migrate();
+
+		$this->assertSame( '', Settings::get()['keys']['alphavantage'] );
+	}
+
 	public function test_does_not_overwrite_saved_settings() {
 		$saved                         = Settings::defaults();
 		$saved['keys']['alphavantage'] = 'NEWKEY';

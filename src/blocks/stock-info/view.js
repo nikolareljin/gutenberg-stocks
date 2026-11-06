@@ -69,9 +69,10 @@ const renderFigure = ( figure ) => {
 
 const hydrateLegacy = async ( element, restBase ) => {
 	const symbol = sanitizeSymbol( element.dataset.symbol || '' );
-	if ( ! symbol || ! restBase ) {
+	if ( ! symbol || ! restBase || element.dataset.nrStocksHydrated ) {
 		return;
 	}
+	element.dataset.nrStocksHydrated = '1';
 	const result = await fetchSeries( restBase, { symbols: [ symbol ] } );
 	const entry = result.ok && result.data ? result.data[ symbol ] : null;
 	if ( ! entry || ! entry.ok || ! entry.data || ! entry.data.length ) {

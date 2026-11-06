@@ -191,7 +191,7 @@ class NR_Stocks_Rest_Test extends WP_UnitTestCase {
 				'symbols'  => 'IBM',
 			)
 		);
-		$this->assertStringContainsString( 'max-age=0', $response->get_headers()['Cache-Control'] );
+		$this->assertSame( 'no-store', $response->get_headers()['Cache-Control'] );
 	}
 
 	public function test_anonymous_upstream_budget_stops_misses_and_clears_the_guard() {
@@ -255,6 +255,32 @@ class NR_Stocks_Rest_Test extends WP_UnitTestCase {
 		remove_filter( 'nr_stocks_client_ip', $other_client );
 	}
 
+	public function test_error_headers_on_own_routes_only() {
+		$routes  = Nikolareljin\NrStocks\Rest\Routes::class;
+		$limited = new WP_REST_Response( array( 'data' => array( 'retry_after' => 12 ) ), 429 );
+		$own     = new WP_REST_Request( 'GET', '/nr-stocks/v1/series' );
+		$headers = $routes::error_headers( $limited, null, $own )->get_headers();
+		$this->assertSame( 'no-store', $headers['Cache-Control'] );
+		$this->assertSame( '12', $headers['Retry-After'] );
+
+		$other = new WP_REST_Response( array(), 404 );
+		$core  = new WP_REST_Request( 'GET', '/wp/v2/posts' );
+		$this->assertSame( array(), $routes::error_headers( $other, null, $core )->get_headers() );
+	}
+
+	public function test_jsonp_is_disabled_on_own_routes_only() {
+		global $wp;
+		$routes = Nikolareljin\NrStocks\Rest\Routes::class;
+		$saved  = $wp->query_vars;
+
+		$wp->query_vars['rest_route'] = '/NR-Stocks/v1/series';
+		$this->assertFalse( $routes::jsonp_enabled( true ) );
+		$wp->query_vars['rest_route'] = '/wp/v2/posts';
+		$this->assertTrue( $routes::jsonp_enabled( true ) );
+
+		$wp->query_vars = $saved;
+	}
+
 	public function test_cors_decision_uses_site_and_allowlist() {
 		$settings                      = Nikolareljin\NrStocks\Settings::get();
 		$settings['rest_cors_origins'] = array( 'app.example.com' );
@@ -268,6 +294,8 @@ class NR_Stocks_Rest_Test extends WP_UnitTestCase {
 		$this->assertSame( 'deny', $routes::cors_decision( home_url() . ':8443' ) );
 		$this->assertTrue( $routes::is_own_route( '/nr-stocks/v1/series' ) );
 		$this->assertTrue( $routes::is_own_route( '/NR-Stocks/v1/series' ) );
+		$this->assertTrue( $routes::is_own_route( '/nr-stocks/v1' ) );
+		$this->assertFalse( $routes::is_own_route( '/nr-stocks/v10/series' ) );
 		$this->assertFalse( $routes::is_own_route( '/wp/v2/posts' ) );
 	}
 }

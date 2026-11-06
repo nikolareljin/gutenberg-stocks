@@ -16,12 +16,14 @@ Base: `https://example.com/wp-json/nr-stocks/v1`
 - Upstream budget: logged-out requests share a site-wide budget of cache
   misses, default 30/min (setting 0..3600, 0 = off). Past it, uncached
   symbols report `upstream_budget`. Cached data keeps being served.
-- Headers on success: `Cache-Control: public, max-age=<ttl>` (`max-age=0`
-  when any symbol failed),
+- Headers on success for logged-out requests:
+  `Cache-Control: public, max-age=<ttl>` (`no-store` when any symbol failed;
+  core sends its own no-cache headers to logged-in users),
   `ETag: "<md5>"`, `X-NR-Stocks-Cache: HIT|MISS`.
 - CORS: same-origin always works. Cross-origin browsers are allowed only
   for hosts listed under Settings → NR Stocks → REST API, without
-  credentials. This applies to `nr-stocks/v1` routes only.
+  credentials. This applies to `nr-stocks/v1` routes only, where JSONP is also
+  disabled.
 - Params: `provider` (id, default = saved default), `symbols` CSV and/or
   `symbol` (max 5, cleaned server-side), `series` (daily|weekly|monthly|
   intraday), `range` 1..365 (default 30), `interval` (intraday only;
@@ -129,6 +131,8 @@ Up to 10 matches.
 
 ## HTTP status mapping
 
+- Errors send `Cache-Control: no-store`; rate limited answers add
+  `Retry-After`.
 - 200 — envelope. Series/quote keep failures per-symbol (`{ok:false,
   error}` inside `data`) so partial results still return.
 - 400 — `nr_stocks_bad_symbol`, `nr_stocks_unknown_provider`,

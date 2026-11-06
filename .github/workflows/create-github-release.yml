@@ -19,6 +19,9 @@ jobs:
 
   deploy:
     needs: release
+    # Dispatched by hand from a branch, the release still publishes but deploy
+    # is visibly skipped: it must build from the tag itself.
+    if: github.ref_type == 'tag' && github.ref_name == inputs.release_tag
     uses: ./.github/workflows/deploy.yml
     permissions:
       contents: read

@@ -92,6 +92,7 @@ class NR_Stocks_Cache_Test extends WP_UnitTestCase {
 
 	public function test_request_that_loses_the_lock_never_fetches() {
 		set_transient( 'nrstx_phpunit_lock_lock', 1, 15 );
+		add_filter( 'nr_stocks_lock_wait_ms', array( $this, 'short_lock_wait' ) );
 		$calls  = 0;
 		$result = Cache::get_or_fetch(
 			'nrstx_phpunit_lock',
@@ -104,9 +105,41 @@ class NR_Stocks_Cache_Test extends WP_UnitTestCase {
 				);
 			}
 		);
+		remove_filter( 'nr_stocks_lock_wait_ms', array( $this, 'short_lock_wait' ) );
 		$this->assertSame( 0, $calls );
 		$this->assertFalse( $result['ok'] );
 		$this->assertSame( 'busy', $result['error'] );
+	}
+
+	public function short_lock_wait() {
+		return 250;
+	}
+
+	public function test_hit_older_than_the_callers_ttl_is_refetched() {
+		$calls   = 0;
+		$fetcher = function () use ( &$calls ) {
+			++$calls;
+			return array(
+				'ok'   => true,
+				'data' => array( $calls ),
+			);
+		};
+		set_transient(
+			'nrstx_phpunit_age',
+			array(
+				'data'       => array(
+					'ok'   => true,
+					'data' => array( 'old' ),
+				),
+				'fetched_at' => time() - 600,
+			),
+			86400
+		);
+		$long  = Cache::get_or_fetch( 'nrstx_phpunit_age', 86400, $fetcher );
+		$short = Cache::get_or_fetch( 'nrstx_phpunit_age', 300, $fetcher );
+		$this->assertSame( array( 'old' ), $long['data'] );
+		$this->assertSame( array( 1 ), $short['data'] );
+		$this->assertSame( 1, $calls );
 	}
 
 	public function test_waiting_request_sees_a_result_stored_by_another_process() {

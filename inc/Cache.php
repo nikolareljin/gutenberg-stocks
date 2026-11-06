@@ -34,10 +34,11 @@ class Cache {
 
 	/**
 	 * How long a request waits for another request's fetch, in milliseconds.
+	 * Long enough to outlast the 12-second upstream timeout.
 	 *
 	 * @var int
 	 */
-	const LOCK_WAIT_MS = 3000;
+	const LOCK_WAIT_MS = 13000;
 
 	/**
 	 * How often a waiting request checks for the result, in milliseconds.
@@ -211,21 +212,28 @@ class Cache {
 			return $result;
 		}
 
+		// Entries are shared across TTLs, so each caller applies its own limit.
 		$hit = self::read_response( $key );
-		if ( null !== $hit ) {
+		if ( null !== $hit && ( empty( $hit['ok'] ) || $hit['fetched_at'] + $ttl > time() ) ) {
 			return $hit;
 		}
 
 		if ( ! self::acquire_lock( $key ) ) {
-			// Another request owns the fetch: wait for its result, never add a
-			// second upstream call for the same key.
-			$waited = 0;
-			while ( $waited < self::LOCK_WAIT_MS ) {
+			// Another request owns the fetch: wait for its result instead of
+			// adding a second upstream call for the same key.
+			/**
+			 * Filters how long a request waits for another request's fetch.
+			 *
+			 * @param int $wait_ms Milliseconds to wait.
+			 */
+			$wait_ms = (int) apply_filters( 'nr_stocks_lock_wait_ms', self::LOCK_WAIT_MS );
+			$waited  = 0;
+			while ( $waited < $wait_ms ) {
 				usleep( self::LOCK_POLL_MS * 1000 );
 				$waited += self::LOCK_POLL_MS;
 				self::forget_local_copy( $key );
 				$hit = self::read_response( $key );
-				if ( null !== $hit ) {
+				if ( null !== $hit && ( empty( $hit['ok'] ) || $hit['fetched_at'] + $ttl > time() ) ) {
 					return $hit;
 				}
 			}

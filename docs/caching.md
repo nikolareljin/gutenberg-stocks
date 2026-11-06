@@ -22,11 +22,13 @@ endpoint (not recommended in production).
   get persistent, shared caching for free; the settings screen reports
   whether one was detected.
 - Stampede protection: a 15s fetch mutex (atomic `wp_cache_add` under
-  object caching, advisory transient otherwise). Parallel cold requests wait
-  up to 3s for the fetch in progress, then report `busy` instead of adding
-  another upstream call.
+  object caching, advisory transient otherwise, so a tight race can still
+  fetch twice). Parallel cold requests wait up to 13s for the fetch in
+  progress (`nr_stocks_lock_wait_ms` filter), then report `busy`.
 - Ranges share entries: upstream requests use 30, 90, 180, or 365 points and
-  each response is sliced to the requested `range`.
+  each response is sliced to the requested `range`. Each caller still applies
+  its own TTL, so a long per-block TTL does not freeze other charts.
+- A page where every symbol failed tells page caches not to store it.
 - Errors cached 60s (negative cache), so a dead upstream degrades instead
   of melting quotas.
 - Purge: the settings button, saving settings, `wp nr-stocks cache purge`,

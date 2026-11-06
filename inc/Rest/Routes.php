@@ -80,6 +80,9 @@ class Routes {
 			)
 		);
 
+		add_filter( 'rest_jsonp_enabled', array( self::class, 'jsonp_enabled' ) );
+		add_filter( 'rest_post_dispatch', array( self::class, 'error_headers' ), 10, 3 );
+
 		// After core's rest_send_cors_headers, which allows every origin.
 		add_filter( 'rest_pre_serve_request', array( self::class, 'maybe_cors' ), 20, 3 );
 	}
@@ -381,7 +384,7 @@ class Routes {
 	/**
 	 * Whether every per-symbol result succeeded.
 	 *
-	 * Failures must not be stored by browsers or CDNs for a full TTL.
+	 * Failures must not be stored by browsers or CDNs.
 	 *
 	 * @param array $data Per-symbol results.
 	 * @return bool
@@ -468,7 +471,8 @@ class Routes {
 	 */
 	protected static function respond( $payload, $ttl, $cached ) {
 		$response = new WP_REST_Response( $payload, 200 );
-		$response->header( 'Cache-Control', sprintf( 'public, max-age=%d', max( 0, (int) $ttl ) ) );
+		$ttl      = max( 0, (int) $ttl );
+		$response->header( 'Cache-Control', $ttl > 0 ? sprintf( 'public, max-age=%d', $ttl ) : 'no-store' );
 		$response->header( 'ETag', '"' . md5( wp_json_encode( $payload ) ) . '"' );
 		$response->header( 'X-NR-Stocks-Cache', $cached ? 'HIT' : 'MISS' );
 		return $response;
@@ -528,6 +532,38 @@ class Routes {
 	}
 
 	/**
+	 * Disables JSONP on our routes, which would sidestep the host allowlist.
+	 *
+	 * @param bool $enabled Whether JSONP is enabled.
+	 * @return bool
+	 */
+	public static function jsonp_enabled( $enabled ) {
+		global $wp;
+		$route = isset( $wp->query_vars['rest_route'] ) ? (string) $wp->query_vars['rest_route'] : '';
+		return self::is_own_route( $route ) ? false : $enabled;
+	}
+
+	/**
+	 * Keeps error responses out of downstream caches and adds Retry-After.
+	 *
+	 * @param WP_REST_Response $response Response.
+	 * @param mixed            $server   REST server.
+	 * @param WP_REST_Request  $request  Request.
+	 * @return WP_REST_Response
+	 */
+	public static function error_headers( $response, $server, $request ) {
+		if ( ! $response instanceof WP_REST_Response || $response->get_status() < 400 || ! self::is_own_route( $request->get_route() ) ) {
+			return $response;
+		}
+		$response->header( 'Cache-Control', 'no-store' );
+		$data = $response->get_data();
+		if ( isset( $data['data']['retry_after'] ) ) {
+			$response->header( 'Retry-After', (string) (int) $data['data']['retry_after'] );
+		}
+		return $response;
+	}
+
+	/**
 	 * Whether a route belongs to this plugin's namespace.
 	 *
 	 * @param string $route Route path.
@@ -535,7 +571,9 @@ class Routes {
 	 */
 	public static function is_own_route( $route ) {
 		// Core matches routes case-insensitively, so /NR-Stocks/v1 reaches us too.
-		return 0 === strpos( strtolower( (string) $route ), '/' . NR_STOCKS_REST_NAMESPACE . '/' );
+		$route = strtolower( (string) $route );
+		$base  = '/' . NR_STOCKS_REST_NAMESPACE;
+		return $base === $route || 0 === strpos( $route, $base . '/' );
 	}
 
 	/**

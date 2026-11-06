@@ -49,7 +49,7 @@ structure stored in post content, editable in the sidebar with a live
 preview:
 
 ```html
-<!-- wp:nr-stocks/stock-chart {"symbols":"AAPL,MSFT","provider":"twelvedata"} /-->
+<!-- wp:nr-stocks/stock-chart {"symbols":["AAPL","MSFT"],"provider":"twelvedata"} /-->
 ```
 
 - Block (default): insert **Stock Chart**, search symbols, tune
