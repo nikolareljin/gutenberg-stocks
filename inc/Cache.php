@@ -237,8 +237,9 @@ class Cache {
 		}
 
 		$result = call_user_func( $fetcher );
-		self::release_lock( $key );
 
+		// The lock is released only after the result is stored, so a request
+		// arriving in between cannot start a second fetch.
 		if ( ! is_array( $result ) || empty( $result['ok'] ) ) {
 			$error = is_array( $result ) && isset( $result['error'] ) ? (string) $result['error'] : 'fetch_failed';
 			set_transient(
@@ -253,12 +254,14 @@ class Cache {
 				self::NEGATIVE_TTL
 			);
 			self::index_add( $key );
+			self::release_lock( $key );
 			return self::failure( $error );
 		}
 
 		$stored = $result;
 		unset( $stored['cached'], $stored['fetched_at'] );
 		self::set( $key, $stored, $ttl );
+		self::release_lock( $key );
 		$result['cached']     = false;
 		$result['fetched_at'] = time();
 		return $result;

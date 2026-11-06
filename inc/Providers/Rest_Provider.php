@@ -284,7 +284,10 @@ class Rest_Provider {
 	 */
 	protected static function synthetic_quote( $provider_id, $symbol, $ttl_override ) {
 		$series = self::series( $provider_id, $symbol, 'daily', 2, '', $ttl_override );
-		if ( empty( $series['ok'] ) || empty( $series['data'] ) ) {
+		if ( empty( $series['ok'] ) ) {
+			return $series;
+		}
+		if ( empty( $series['data'] ) ) {
 			return self::error( 'unsupported_series' );
 		}
 		$rows = $series['data'];

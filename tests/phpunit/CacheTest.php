@@ -109,6 +109,17 @@ class NR_Stocks_Cache_Test extends WP_UnitTestCase {
 		$this->assertSame( 'busy', $result['error'] );
 	}
 
+	public function test_lock_is_released_after_fetching() {
+		$fetcher = function () {
+			return array(
+				'ok'   => true,
+				'data' => array(),
+			);
+		};
+		Cache::get_or_fetch( 'nrstx_phpunit_release', 300, $fetcher );
+		$this->assertFalse( get_transient( 'nrstx_phpunit_release_lock' ) );
+	}
+
 	public function test_throttle_window_keeps_its_original_expiry() {
 		$this->assertSame( 0, Cache::throttle( 'nrstx_phpunit_rl', 2, 60 ) );
 		$reset = get_transient( 'nrstx_phpunit_rl' )['reset'];

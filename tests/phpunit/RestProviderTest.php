@@ -254,6 +254,13 @@ class NR_Stocks_Rest_Provider_Test extends WP_UnitTestCase {
 		$this->assertSame( 'upstream_limit', $quote['error'] );
 	}
 
+	public function test_synthetic_quote_keeps_the_series_error() {
+		$this->mock_http( '', 500 );
+		$quote = Rest_Provider::quote( 'frankfurter', 'EUR/USD' );
+		$this->assertFalse( $quote['ok'] );
+		$this->assertSame( 'http_error', $quote['error'] );
+	}
+
 	public function test_multiline_av_error_message_is_an_upstream_error() {
 		$this->mock_http( "{\n    \"Error Message\": \"Invalid API call.\"\n}" );
 		$result = Rest_Provider::series( 'alphavantage', 'IBM', 'daily', 30 );
