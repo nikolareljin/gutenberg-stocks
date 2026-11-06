@@ -80,7 +80,8 @@ class Routes {
 			)
 		);
 
-		add_filter( 'rest_pre_serve_request', array( self::class, 'maybe_cors' ), 10, 1 );
+		// After core's rest_send_cors_headers, which allows every origin.
+		add_filter( 'rest_pre_serve_request', array( self::class, 'maybe_cors' ), 20, 3 );
 	}
 
 	/**
@@ -179,21 +180,57 @@ class Routes {
 		if ( $limit <= 0 ) {
 			return null;
 		}
-		$ip   = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : 'unknown';
-		$key  = 'nrstx_rl_' . md5( $ip . '|' . $request->get_route() );
-		$hits = (int) get_transient( $key );
-		if ( $hits >= $limit ) {
+		$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : 'unknown';
+		/**
+		 * Filters the client address used for REST rate limiting.
+		 *
+		 * Sites behind a proxy or CDN can return the visitor address from a
+		 * header their proxy sets. Forwarded headers are not trusted by default
+		 * because any client can send them.
+		 *
+		 * @param string          $ip      Address from REMOTE_ADDR.
+		 * @param WP_REST_Request $request Current request.
+		 */
+		$ip          = (string) apply_filters( 'nr_stocks_client_ip', $ip, $request );
+		$retry_after = Cache::throttle( 'nrstx_rl_' . md5( $ip . '|' . $request->get_route() ), $limit );
+		if ( $retry_after > 0 ) {
 			return new WP_Error(
 				'nr_stocks_rate_limited',
 				'Rate limit exceeded. Try again shortly.',
 				array(
 					'status'      => 429,
-					'retry_after' => 60,
+					'retry_after' => $retry_after,
 				)
 			);
 		}
-		set_transient( $key, $hits + 1, 60 );
 		return null;
+	}
+
+	/**
+	 * Runs a handler body under the site-wide anonymous fetch budget.
+	 *
+	 * Logged-in editors are exempt, and so is server-side rendering, which
+	 * never passes through these handlers.
+	 *
+	 * @param callable $callback Handler body.
+	 * @return mixed Callback result.
+	 */
+	protected static function with_fetch_budget( $callback ) {
+		$settings = Settings::get();
+		$limit    = isset( $settings['rest_miss_limit'] ) ? (int) $settings['rest_miss_limit'] : 30;
+		if ( $limit <= 0 || current_user_can( 'edit_posts' ) ) {
+			return call_user_func( $callback );
+		}
+		Cache::set_fetch_guard(
+			function () use ( $limit ) {
+				return 0 === Cache::throttle( 'nrstx_rl_upstream', $limit );
+			}
+		);
+		try {
+			return call_user_func( $callback );
+		} finally {
+			Cache::set_fetch_guard( null );
+		}
 	}
 
 	/**
@@ -234,7 +271,11 @@ class Routes {
 			return $limited;
 		}
 		$provider = self::resolve_provider( $request['provider'] );
-		$result   = Rest_Provider::search( $provider, $request['q'] );
+		$result   = self::with_fetch_budget(
+			function () use ( $provider, $request ) {
+				return Rest_Provider::search( $provider, $request['q'] );
+			}
+		);
 		if ( empty( $result['ok'] ) ) {
 			return self::rest_error( $result );
 		}
@@ -268,23 +309,23 @@ class Routes {
 		if ( is_wp_error( $args ) ) {
 			return $args;
 		}
-		$data       = array();
-		$all_cached = true;
-		foreach ( $args['symbols'] as $symbol ) {
-			$res = Rest_Provider::series(
-				$args['provider'],
-				$symbol,
-				$args['series'],
-				$args['range'],
-				$args['interval'],
-				$args['ttl']
-			);
-			if ( empty( $res['cached'] ) ) {
-				$all_cached = false;
+		$data = self::with_fetch_budget(
+			function () use ( $args ) {
+				$out = array();
+				foreach ( $args['symbols'] as $symbol ) {
+					$out[ $symbol ] = Rest_Provider::series(
+						$args['provider'],
+						$symbol,
+						$args['series'],
+						$args['range'],
+						$args['interval'],
+						$args['ttl']
+					);
+				}
+				return $out;
 			}
-			$data[ $symbol ] = $res;
-		}
-		$ttl = Cache::resolve_ttl( 'series', $args['ttl'] );
+		);
+		$ttl  = Cache::resolve_ttl( 'series', $args['ttl'] );
 		return self::respond(
 			array(
 				'data' => $data,
@@ -294,8 +335,8 @@ class Routes {
 					'ttl'      => $ttl,
 				),
 			),
-			$ttl,
-			$all_cached
+			self::all_ok( $data ) ? $ttl : 0,
+			self::all_cached( $data )
 		);
 	}
 
@@ -314,16 +355,16 @@ class Routes {
 		if ( is_wp_error( $args ) ) {
 			return $args;
 		}
-		$data       = array();
-		$all_cached = true;
-		foreach ( $args['symbols'] as $symbol ) {
-			$res = Rest_Provider::quote( $args['provider'], $symbol, $args['ttl'] );
-			if ( empty( $res['cached'] ) ) {
-				$all_cached = false;
+		$data = self::with_fetch_budget(
+			function () use ( $args ) {
+				$out = array();
+				foreach ( $args['symbols'] as $symbol ) {
+					$out[ $symbol ] = Rest_Provider::quote( $args['provider'], $symbol, $args['ttl'] );
+				}
+				return $out;
 			}
-			$data[ $symbol ] = $res;
-		}
-		$ttl = Cache::resolve_ttl( 'quote', $args['ttl'] );
+		);
+		$ttl  = Cache::resolve_ttl( 'quote', $args['ttl'] );
 		return self::respond(
 			array(
 				'data' => $data,
@@ -332,9 +373,41 @@ class Routes {
 					'ttl'      => $ttl,
 				),
 			),
-			$ttl,
-			$all_cached
+			self::all_ok( $data ) ? $ttl : 0,
+			self::all_cached( $data )
 		);
+	}
+
+	/**
+	 * Whether every per-symbol result succeeded.
+	 *
+	 * Failures must not be stored by browsers or CDNs for a full TTL.
+	 *
+	 * @param array $data Per-symbol results.
+	 * @return bool
+	 */
+	protected static function all_ok( $data ) {
+		foreach ( $data as $result ) {
+			if ( empty( $result['ok'] ) ) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * Whether every per-symbol result came from the cache.
+	 *
+	 * @param array $data Per-symbol results.
+	 * @return bool
+	 */
+	protected static function all_cached( $data ) {
+		foreach ( $data as $result ) {
+			if ( empty( $result['cached'] ) ) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/**
@@ -358,7 +431,8 @@ class Routes {
 		if ( empty( $symbols ) ) {
 			return new WP_Error( 'nr_stocks_bad_symbol', 'Provide at least one symbol.', array( 'status' => 400 ) );
 		}
-		$ttl = max( 0, min( 86400, (int) $request['ttl'] ) );
+		// Anonymous callers must not choose how long shared entries live.
+		$ttl = current_user_can( 'edit_posts' ) ? max( 0, min( 86400, (int) $request['ttl'] ) ) : 0;
 		return array(
 			'provider' => self::resolve_provider( $request['provider'] ),
 			'symbols'  => $symbols,
@@ -411,35 +485,78 @@ class Routes {
 		$status = 502;
 		if ( in_array( $code, array( 'bad_symbol', 'unknown_provider', 'unsupported_series', 'unsupported_asset', 'unsupported_pair' ), true ) ) {
 			$status = 400;
-		} elseif ( 'missing_key' === $code ) {
+		} elseif ( in_array( $code, array( 'missing_key', 'busy' ), true ) ) {
 			$status = 503;
-		} elseif ( 'upstream_limit' === $code ) {
+		} elseif ( in_array( $code, array( 'upstream_limit', 'upstream_budget' ), true ) ) {
 			$status = 429;
 		}
 		return new WP_Error( 'nr_stocks_' . $code, 'Market data request failed (' . $code . ').', array( 'status' => $status ) );
 	}
 
 	/**
-	 * Adds cross-origin headers for allowlisted hosts on our routes only.
+	 * Applies the host allowlist to cross-origin requests on our routes only.
 	 *
-	 * @param bool $served Whether the request was served.
+	 * Core has already sent its allow-all CORS headers by this point. Other
+	 * REST routes keep them untouched.
+	 *
+	 * @param bool                 $served  Whether the request was served.
+	 * @param mixed                $result  Response object.
+	 * @param WP_REST_Request|null $request Current request.
 	 * @return bool
 	 */
-	public static function maybe_cors( $served ) {
-		if ( ! isset( $_SERVER['HTTP_ORIGIN'] ) ) {
+	public static function maybe_cors( $served, $result = null, $request = null ) {
+		if ( ! isset( $_SERVER['HTTP_ORIGIN'] ) || ! $request instanceof WP_REST_Request || headers_sent() ) {
 			return $served;
 		}
-		$origin = esc_url_raw( wp_unslash( $_SERVER['HTTP_ORIGIN'] ) );
-		$host   = strtolower( (string) wp_parse_url( $origin, PHP_URL_HOST ) );
-		if ( '' === $host ) {
+		if ( ! self::is_own_route( $request->get_route() ) ) {
 			return $served;
+		}
+		$origin   = esc_url_raw( wp_unslash( $_SERVER['HTTP_ORIGIN'] ) );
+		$decision = self::cors_decision( $origin );
+		if ( 'same' === $decision ) {
+			return $served;
+		}
+		// The API is public read-only: cookies are never needed cross-origin.
+		header_remove( 'Access-Control-Allow-Credentials' );
+		if ( 'allow' === $decision ) {
+			header( 'Access-Control-Allow-Origin: ' . $origin );
+			header( 'Vary: Origin', false );
+		} else {
+			header_remove( 'Access-Control-Allow-Origin' );
+		}
+		return $served;
+	}
+
+	/**
+	 * Whether a route belongs to this plugin's namespace.
+	 *
+	 * @param string $route Route path.
+	 * @return bool
+	 */
+	public static function is_own_route( $route ) {
+		return 0 === strpos( (string) $route, '/' . NR_STOCKS_REST_NAMESPACE . '/' );
+	}
+
+	/**
+	 * Classifies an Origin header against this site and the saved allowlist.
+	 *
+	 * @param string $origin Origin URL.
+	 * @return string same|allow|deny.
+	 */
+	public static function cors_decision( $origin ) {
+		$host = strtolower( (string) wp_parse_url( $origin, PHP_URL_HOST ) );
+		if ( '' === $host ) {
+			return 'deny';
+		}
+		$own = array(
+			strtolower( (string) wp_parse_url( home_url(), PHP_URL_HOST ) ),
+			strtolower( (string) wp_parse_url( site_url(), PHP_URL_HOST ) ),
+		);
+		if ( in_array( $host, $own, true ) ) {
+			return 'same';
 		}
 		$settings = Settings::get();
 		$allowed  = isset( $settings['rest_cors_origins'] ) && is_array( $settings['rest_cors_origins'] ) ? $settings['rest_cors_origins'] : array();
-		if ( in_array( $host, $allowed, true ) ) {
-			header( 'Access-Control-Allow-Origin: ' . $origin );
-			header( 'Vary: Origin' );
-		}
-		return $served;
+		return in_array( $host, $allowed, true ) ? 'allow' : 'deny';
 	}
 }

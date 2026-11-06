@@ -155,9 +155,9 @@ class NR_Stocks_Rest_Provider_Test extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'base=EUR', $this->mock_calls[0] );
 		$this->assertStringContainsString( 'quotes=USD', $this->mock_calls[0] );
 
-		// Quote is synthesized from the series (no quote endpoint configured).
-		$this->mock_http( self::fixture( 'frankfurter.json' ) );
+		// Quote is synthesized from the series and shares its cached entry.
 		$quote = Rest_Provider::quote( 'frankfurter', 'EUR/USD' );
+		$this->assertCount( 1, $this->mock_calls );
 		$this->assertTrue( $quote['ok'] );
 		$this->assertSame( 1.1282, $quote['data']['price'] );
 		$this->assertTrue( $quote['meta']['synthetic'] );
@@ -239,5 +239,42 @@ class NR_Stocks_Rest_Provider_Test extends WP_UnitTestCase {
 		$this->assertFalse( $first['cached'] );
 		$this->assertTrue( $second['cached'] );
 		$this->assertCount( 1, $this->mock_calls );
+	}
+
+	public function test_multiline_av_note_is_a_limit_error_and_not_a_cached_success() {
+		$body = self::fixture( 'av_note_multiline.json' );
+		$this->mock_http( $body );
+		$series = Rest_Provider::series( 'alphavantage', 'IBM', 'daily', 30 );
+		$this->assertFalse( $series['ok'] );
+		$this->assertSame( 'upstream_limit', $series['error'] );
+
+		$this->mock_http( $body );
+		$quote = Rest_Provider::quote( 'alphavantage', 'IBM' );
+		$this->assertFalse( $quote['ok'] );
+		$this->assertSame( 'upstream_limit', $quote['error'] );
+	}
+
+	public function test_multiline_av_error_message_is_an_upstream_error() {
+		$this->mock_http( "{\n    \"Error Message\": \"Invalid API call.\"\n}" );
+		$result = Rest_Provider::series( 'alphavantage', 'IBM', 'daily', 30 );
+		$this->assertSame( 'upstream_error', $result['error'] );
+	}
+
+	public function test_csv_without_expected_columns_is_a_parse_error() {
+		$this->mock_http( "foo,bar\n1,2\n" );
+		$result = Rest_Provider::series( 'alphavantage', 'IBM', 'daily', 30 );
+		$this->assertFalse( $result['ok'] );
+		$this->assertSame( 'parse_error', $result['error'] );
+	}
+
+	public function test_unknown_intervals_and_nearby_ranges_share_one_fetch() {
+		$this->mock_http( self::fixture( 'av_daily.csv' ) );
+		$first  = Rest_Provider::series( 'alphavantage', 'IBM', 'daily', 2, 'aaa' );
+		$second = Rest_Provider::series( 'alphavantage', 'IBM', 'daily', 1, 'bbb' );
+		$this->assertCount( 1, $this->mock_calls );
+		$this->assertCount( 2, $first['data'] );
+		$this->assertCount( 1, $second['data'] );
+		$this->assertTrue( $second['cached'] );
+		$this->assertSame( end( $first['data'] )['date'], end( $second['data'] )['date'] );
 	}
 }

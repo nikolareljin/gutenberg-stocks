@@ -89,4 +89,63 @@ class NR_Stocks_Cache_Test extends WP_UnitTestCase {
 		$this->assertNull( Cache::get( 'nrstx_phpunit_a' ) );
 		$this->assertNull( Cache::get( 'nrstx_phpunit_b' ) );
 	}
+
+	public function test_request_that_loses_the_lock_never_fetches() {
+		set_transient( 'nrstx_phpunit_lock_lock', 1, 15 );
+		$calls  = 0;
+		$result = Cache::get_or_fetch(
+			'nrstx_phpunit_lock',
+			300,
+			function () use ( &$calls ) {
+				++$calls;
+				return array(
+					'ok'   => true,
+					'data' => array(),
+				);
+			}
+		);
+		$this->assertSame( 0, $calls );
+		$this->assertFalse( $result['ok'] );
+		$this->assertSame( 'busy', $result['error'] );
+	}
+
+	public function test_throttle_window_keeps_its_original_expiry() {
+		$this->assertSame( 0, Cache::throttle( 'nrstx_phpunit_rl', 2, 60 ) );
+		$reset = get_transient( 'nrstx_phpunit_rl' )['reset'];
+		$this->assertSame( 0, Cache::throttle( 'nrstx_phpunit_rl', 2, 60 ) );
+		$this->assertSame( $reset, get_transient( 'nrstx_phpunit_rl' )['reset'] );
+		$this->assertGreaterThan( 0, Cache::throttle( 'nrstx_phpunit_rl', 2, 60 ) );
+	}
+
+	public function test_throttle_resets_after_the_window() {
+		set_transient(
+			'nrstx_phpunit_rl_old',
+			array(
+				'count' => 99,
+				'reset' => time() - 1,
+			),
+			60
+		);
+		$this->assertSame( 0, Cache::throttle( 'nrstx_phpunit_rl_old', 2, 60 ) );
+		$this->assertSame( 1, get_transient( 'nrstx_phpunit_rl_old' )['count'] );
+	}
+
+	public function test_fetch_guard_refuses_misses_but_serves_hits() {
+		$fetcher = function () {
+			return array(
+				'ok'   => true,
+				'data' => array( 'rows' ),
+			);
+		};
+		Cache::get_or_fetch( 'nrstx_phpunit_guard_hit', 300, $fetcher );
+		Cache::set_fetch_guard( '__return_false' );
+		$hit  = Cache::get_or_fetch( 'nrstx_phpunit_guard_hit', 300, $fetcher );
+		$miss = Cache::get_or_fetch( 'nrstx_phpunit_guard_miss', 300, $fetcher );
+		Cache::set_fetch_guard( null );
+
+		$this->assertTrue( $hit['ok'] );
+		$this->assertSame( 'upstream_budget', $miss['error'] );
+		$this->assertNull( Cache::get( 'nrstx_phpunit_guard_miss' ) );
+		$this->assertFalse( get_transient( 'nrstx_phpunit_guard_miss_lock' ) );
+	}
 }

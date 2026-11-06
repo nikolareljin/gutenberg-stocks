@@ -75,6 +75,14 @@ class Rest_Provider {
 	const MAX_BODY = 2097152;
 
 	/**
+	 * Point counts requested upstream. Results are cached per bucket and sliced
+	 * per request, so nearby ranges share one upstream call.
+	 *
+	 * @var int[]
+	 */
+	const RANGE_BUCKETS = array( 30, 90, 180, 365 );
+
+	/**
 	 * Fetches a normalized time series.
 	 *
 	 * @param string $provider_id Provider id.
@@ -104,7 +112,11 @@ class Rest_Provider {
 			return self::error( 'missing_key' );
 		}
 
-		$params = self::build_params( $config, $provider_id, $symbol, $asset, $range, $interval, $key );
+		$range       = max( 1, min( 365, (int) $range ) );
+		$fetch_range = self::fetch_range( $range );
+		$interval    = self::canonical_interval( $series, $interval );
+
+		$params = self::build_params( $config, $provider_id, $symbol, $asset, $fetch_range, $interval, $key );
 		if ( isset( $op['base_currency'] ) && $params['from'] !== $op['base_currency'] ) {
 			return self::error( 'unsupported_pair' );
 		}
@@ -116,19 +128,22 @@ class Rest_Provider {
 		$cache_key = Cache::make_key(
 			$provider_id,
 			'series',
-			array( $symbol, $series, $range, $interval, $asset )
+			array( $symbol, $series, $fetch_range, $interval, $asset )
 		);
 		$ttl       = Cache::resolve_ttl( 'series', $ttl_override );
 
 		$result = Cache::get_or_fetch(
 			$cache_key,
 			$ttl,
-			function () use ( $op, $url, $params, $range ) {
-				return self::fetch_rows( $op, $url, $params, $range );
+			function () use ( $op, $url, $params, $fetch_range ) {
+				return self::fetch_rows( $op, $url, $params, $fetch_range );
 			}
 		);
 		if ( empty( $result['ok'] ) ) {
 			return $result;
+		}
+		if ( isset( $result['data'] ) && is_array( $result['data'] ) && count( $result['data'] ) > $range ) {
+			$result['data'] = array_values( array_slice( $result['data'], -$range ) );
 		}
 		$result['meta'] = array(
 			'provider' => $provider_id,
@@ -349,6 +364,35 @@ class Rest_Provider {
 	}
 
 	/**
+	 * Smallest fetch bucket that covers a requested range.
+	 *
+	 * @param int $range Requested point count.
+	 * @return int
+	 */
+	protected static function fetch_range( $range ) {
+		foreach ( self::RANGE_BUCKETS as $bucket ) {
+			if ( $range <= $bucket ) {
+				return $bucket;
+			}
+		}
+		return 365;
+	}
+
+	/**
+	 * Reduces an interval to the value the upstream request actually uses.
+	 *
+	 * @param string $series   Series id.
+	 * @param string $interval Requested interval.
+	 * @return string Allowed interval for intraday, otherwise empty.
+	 */
+	protected static function canonical_interval( $series, $interval ) {
+		if ( 'intraday' !== $series ) {
+			return '';
+		}
+		return in_array( $interval, self::INTRADAY_INTERVALS, true ) ? $interval : '15min';
+	}
+
+	/**
 	 * Builds template params for a request.
 	 *
 	 * @param array  $config      Provider config.
@@ -494,11 +538,13 @@ class Rest_Provider {
 		if ( 'csv' === $op['format'] ) {
 			$table = self::parse_csv( $raw );
 			if ( null === $table || empty( $table ) ) {
-				// Alpha Vantage answers quota errors as JSON even for CSV calls.
-				return self::looks_like_limit( $raw ) ? self::error( 'upstream_limit' ) : self::error( 'parse_error' );
+				return self::csv_failure( $raw );
 			}
 			$rows = self::apply_map( $table, isset( $op['map'] ) ? $op['map'] : array(), $params, isset( $op['transforms'] ) ? $op['transforms'] : array() );
 			$rows = self::normalize_series( $rows );
+			if ( empty( $rows ) ) {
+				return self::csv_failure( $raw );
+			}
 			if ( isset( $op['order'] ) && 'desc' === $op['order'] ) {
 				$rows = array_reverse( $rows );
 			}
@@ -563,12 +609,16 @@ class Rest_Provider {
 		if ( 'csv' === $op['format'] ) {
 			$table = self::parse_csv( $body['body'] );
 			if ( null === $table || empty( $table ) ) {
-				return self::looks_like_limit( $body['body'] ) ? self::error( 'upstream_limit' ) : self::error( 'parse_error' );
+				return self::csv_failure( $body['body'] );
 			}
-			$rows = self::apply_map( array( $table[0] ), $map, $params, $transforms );
+			$rows  = self::apply_map( array( $table[0] ), $map, $params, $transforms );
+			$quote = self::normalize_quote( $rows[0] );
+			if ( null === $quote['price'] ) {
+				return self::csv_failure( $body['body'] );
+			}
 			return array(
 				'ok'   => true,
-				'data' => self::normalize_quote( $rows[0] ),
+				'data' => $quote,
 			);
 		}
 
@@ -750,7 +800,12 @@ class Rest_Provider {
 	 * @return array|null
 	 */
 	public static function parse_csv( $text ) {
-		$lines = preg_split( "/\r\n|\n|\r/", trim( $text ) );
+		$text = trim( $text );
+		// Alpha Vantage answers errors and quota notes as JSON on CSV calls.
+		if ( '' === $text || '{' === $text[0] || '[' === $text[0] ) {
+			return null;
+		}
+		$lines = preg_split( "/\r\n|\n|\r/", $text );
 		if ( ! is_array( $lines ) || count( $lines ) < 2 ) {
 			return null;
 		}
@@ -961,6 +1016,20 @@ class Rest_Provider {
 			}
 		}
 		return null;
+	}
+
+	/**
+	 * Classifies a CSV call whose body held no usable rows.
+	 *
+	 * @param string $body Raw body.
+	 * @return array Error envelope.
+	 */
+	protected static function csv_failure( $body ) {
+		if ( self::looks_like_limit( $body ) ) {
+			return self::error( 'upstream_limit' );
+		}
+		$first = substr( ltrim( $body ), 0, 1 );
+		return self::error( '{' === $first || '[' === $first ? 'upstream_error' : 'parse_error' );
 	}
 
 	/**
