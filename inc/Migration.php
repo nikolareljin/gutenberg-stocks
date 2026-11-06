@@ -19,9 +19,14 @@ class Migration {
 
 	/**
 	 * Runs the migration when needed.
+	 *
+	 * Settings still equal to the seeded defaults were never saved by the
+	 * user, so migrating over them is safe. This also repairs sites where
+	 * 1.0.0 activation seeded defaults before the migration could run.
 	 */
 	public static function maybe_migrate() {
-		if ( false !== get_option( NR_STOCKS_OPTION, false ) ) {
+		$current = get_option( NR_STOCKS_OPTION, false );
+		if ( false !== $current && Settings::defaults() !== $current ) {
 			return;
 		}
 		$old = get_option( 'stockinfo_options_api', array() );
@@ -45,6 +50,9 @@ class Migration {
 		if ( ! empty( $old['stockinfo_api_entrypoint'] ) && 'query' !== trim( $old['stockinfo_api_entrypoint'] ) ) {
 			$settings['av_entrypoint'] = sanitize_key( trim( $old['stockinfo_api_entrypoint'] ) );
 		}
-		add_option( NR_STOCKS_OPTION, $settings );
+		if ( Settings::defaults() === $settings ) {
+			return;
+		}
+		update_option( NR_STOCKS_OPTION, $settings );
 	}
 }

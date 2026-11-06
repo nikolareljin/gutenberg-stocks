@@ -63,4 +63,42 @@ class NR_Stocks_Migration_Test extends WP_UnitTestCase {
 
 		$this->assertFalse( get_option( NR_STOCKS_OPTION, false ) );
 	}
+
+	public function test_activation_migrates_instead_of_seeding_defaults() {
+		delete_option( NR_STOCKS_OPTION );
+		update_option( 'stockinfo_options_api', array( 'stockinfo_api_token' => 'OLDKEY' ) );
+
+		Nikolareljin\NrStocks\Plugin::activate();
+
+		$this->assertSame( 'OLDKEY', Settings::get()['keys']['alphavantage'] );
+	}
+
+	public function test_activation_seeds_defaults_without_legacy_options() {
+		delete_option( NR_STOCKS_OPTION );
+		delete_option( 'stockinfo_options_api' );
+
+		Nikolareljin\NrStocks\Plugin::activate();
+
+		$this->assertSame( Settings::defaults(), get_option( NR_STOCKS_OPTION ) );
+	}
+
+	public function test_migrates_over_seeded_defaults() {
+		update_option( NR_STOCKS_OPTION, Settings::defaults() );
+		update_option( 'stockinfo_options_api', array( 'stockinfo_api_token' => 'OLDKEY' ) );
+
+		Migration::maybe_migrate();
+
+		$this->assertSame( 'OLDKEY', Settings::get()['keys']['alphavantage'] );
+	}
+
+	public function test_does_not_overwrite_saved_settings() {
+		$saved                         = Settings::defaults();
+		$saved['keys']['alphavantage'] = 'NEWKEY';
+		update_option( NR_STOCKS_OPTION, $saved );
+		update_option( 'stockinfo_options_api', array( 'stockinfo_api_token' => 'OLDKEY' ) );
+
+		Migration::maybe_migrate();
+
+		$this->assertSame( 'NEWKEY', Settings::get()['keys']['alphavantage'] );
+	}
 }

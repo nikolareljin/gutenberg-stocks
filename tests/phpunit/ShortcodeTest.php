@@ -48,4 +48,21 @@ class NR_Stocks_Shortcode_Test extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'nr-stocks-error', $html );
 		$this->assertStringContainsString( 'unavailable', $html );
 	}
+
+	public function test_no_symbols_renders_nothing() {
+		$this->assertSame( '', do_shortcode( '[nr-stocks symbols=""]' ) );
+		$this->assertSame( '', Nikolareljin\NrStocks\Block::render( array( 'symbols' => array() ) ) );
+	}
+
+	public function test_legacy_markup_detection() {
+		$block = Nikolareljin\NrStocks\Block::class;
+		$this->assertTrue( $block::has_legacy_markup( '<div class="stock-information-item" data-symbol="IBM"></div>' ) );
+		$this->assertFalse( $block::has_legacy_markup( '<p>Plain post</p>' ) );
+	}
+
+	public function test_baked_payload_carries_translated_chart_labels() {
+		$this->mock_http( self::fixture( 'av_daily.csv' ) );
+		$html = do_shortcode( '[nr-stocks symbols="IBM" provider="alphavantage"]' );
+		$this->assertStringContainsString( '"labels":{"chart":"Price chart","noData":"No data"}', $html );
+	}
 }

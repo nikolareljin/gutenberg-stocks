@@ -1,8 +1,11 @@
 import {
+	PALETTE,
 	buildChartModel,
 	escapeXml,
 	normalizeRows,
 	renderChartSVG,
+	renderLegendHTML,
+	renderQuotesHTML,
 	toDate,
 	toPercentChange,
 } from './chart';
@@ -131,5 +134,75 @@ describe( 'renderChartSVG', () => {
 			{ symbol: 'F', rows: rows( [ 5, 5, 5 ] ) },
 		] );
 		expect( svg ).not.toMatch( /NaN|Infinity|undefined/ );
+	} );
+} );
+
+describe( 'renderLegendHTML', () => {
+	it( 'is empty for a single series', () => {
+		expect( renderLegendHTML( [ 'AAPL' ] ) ).toBe( '' );
+	} );
+
+	it( 'lists symbols with chart colors and escapes them', () => {
+		const html = renderLegendHTML( [ 'AAPL', '<b>' ], {
+			color: '#123456',
+		} );
+		expect( html ).toContain( 'background:#123456' );
+		expect( html ).toContain( `background:${ PALETTE[ 1 ] }` );
+		expect( html ).toContain( '&lt;b&gt;' );
+		expect( html ).not.toContain( '<b>' );
+	} );
+} );
+
+describe( 'renderQuotesHTML', () => {
+	it( 'renders price, currency, and signed change', () => {
+		const html = renderQuotesHTML( [
+			{
+				symbol: 'IBM',
+				quote: { price: 142.2, change_percent: 1.9, currency: 'USD' },
+			},
+			{
+				symbol: 'MSFT',
+				quote: { price: 10, change_percent: -0.5, currency: '' },
+			},
+		] );
+		expect( html ).toContain( '142.2 USD' );
+		expect( html ).toContain( '+1.90%' );
+		expect( html ).toContain( 'is-up' );
+		expect( html ).toContain( '-0.50%' );
+		expect( html ).toContain( 'is-down' );
+	} );
+
+	it( 'skips missing quotes and omits an unknown change', () => {
+		expect( renderQuotesHTML( [ { symbol: 'A', quote: null } ] ) ).toBe(
+			''
+		);
+		expect(
+			renderQuotesHTML( [ { symbol: 'A', quote: { price: null } } ] )
+		).toBe( '' );
+		const html = renderQuotesHTML( [
+			{ symbol: 'A', quote: { price: 1, change_percent: null } },
+		] );
+		expect( html ).not.toContain( '%' );
+	} );
+
+	it( 'escapes upstream text', () => {
+		const html = renderQuotesHTML( [
+			{
+				symbol: 'A',
+				quote: { price: 1, currency: '<img src=x>' },
+			},
+		] );
+		expect( html ).toContain( '&lt;img' );
+		expect( html ).not.toContain( '<img' );
+	} );
+} );
+
+describe( 'renderChartSVG labels', () => {
+	it( 'uses translated labels and escapes them', () => {
+		const html = renderChartSVG( [], {
+			labels: { noData: 'Sin "datos"' },
+		} );
+		expect( html ).toContain( 'Sin &quot;datos&quot;' );
+		expect( html ).not.toContain( 'No data' );
 	} );
 } );

@@ -74,4 +74,49 @@ class NR_Stocks_Settings_Test extends WP_UnitTestCase {
 		);
 		$this->assertSame( 'AVKEY', Settings::get_key( 'alphavantage' ) );
 	}
+
+	public function test_sanitize_is_stable_when_run_twice() {
+		$settings = new Settings();
+		$first    = $settings->sanitize( array( 'rest_cors_origins' => "app.example.com\nfoo.test" ) );
+		$second   = $settings->sanitize( $first );
+		$this->assertSame( array( 'app.example.com', 'foo.test' ), $second['rest_cors_origins'] );
+		$this->assertSame( $first, $second );
+	}
+
+	public function test_saving_with_the_option_absent_keeps_cors_hosts() {
+		delete_option( NR_STOCKS_OPTION );
+		$settings = new Settings();
+		register_setting( 'nr_stocks', NR_STOCKS_OPTION, array( $settings, 'sanitize' ) );
+		update_option( NR_STOCKS_OPTION, array( 'rest_cors_origins' => 'app.example.com' ) );
+		unregister_setting( 'nr_stocks', NR_STOCKS_OPTION );
+		$this->assertSame( array( 'app.example.com' ), get_option( NR_STOCKS_OPTION )['rest_cors_origins'] );
+	}
+
+	public function test_sanitize_clamps_the_upstream_budget() {
+		$settings = new Settings();
+		$this->assertSame( 30, $settings->sanitize( array() )['rest_miss_limit'] );
+		$this->assertSame( 0, $settings->sanitize( array( 'rest_miss_limit' => '0' ) )['rest_miss_limit'] );
+		$this->assertSame( 3600, $settings->sanitize( array( 'rest_miss_limit' => '99999' ) )['rest_miss_limit'] );
+	}
+
+	public function test_every_setting_and_save_button_share_one_form() {
+		require_once ABSPATH . 'wp-admin/includes/template.php';
+		$settings = new Settings();
+		$settings->register_settings();
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+
+		ob_start();
+		$settings->render_page();
+		$html = (string) ob_get_clean();
+
+		$this->assertSame( 2, substr_count( $html, '<form' ) );
+		$this->assertStringNotContainsString( 'display:none', $html );
+		$first_form_end = strpos( $html, '</form>' );
+		$last_field     = strrpos( $html, 'name="' . NR_STOCKS_OPTION . '[' );
+		$save_button    = strpos( $html, 'name="submit"' );
+		$purge_action   = strpos( $html, 'admin-post.php' );
+		$this->assertLessThan( $first_form_end, $last_field );
+		$this->assertLessThan( $first_form_end, $save_button );
+		$this->assertGreaterThan( $first_form_end, $purge_action );
+	}
 }

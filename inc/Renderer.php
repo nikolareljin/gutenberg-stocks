@@ -27,7 +27,11 @@ class Renderer {
 	 * @return string HTML.
 	 */
 	public static function render_chart( $args ) {
-		$args     = self::normalize_args( $args );
+		$args = self::normalize_args( $args );
+		if ( empty( $args['symbols'] ) ) {
+			// Nothing to chart yet, for example a block with no symbols added.
+			return '';
+		}
 		$settings = Settings::get();
 		$color    = isset( $settings['line_color'] ) ? $settings['line_color'] : '#0b163b';
 
@@ -78,6 +82,10 @@ class Renderer {
 			'series'   => $args['series'],
 			'color'    => $color,
 			'symbols'  => $symbols,
+			'labels'   => array(
+				'chart'  => __( 'Price chart', 'nr-stocks' ),
+				'noData' => __( 'No data', 'nr-stocks' ),
+			),
 		);
 
 		$fallback = '';

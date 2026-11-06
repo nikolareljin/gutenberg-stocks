@@ -20,9 +20,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Plugin {
 
 	/**
-	 * Activation: seed default options.
+	 * Activation: migrate 0.x options, otherwise seed defaults.
 	 */
 	public static function activate() {
+		Migration::maybe_migrate();
 		if ( false === get_option( NR_STOCKS_OPTION, false ) ) {
 			add_option( NR_STOCKS_OPTION, Settings::defaults() );
 		}
@@ -39,6 +40,7 @@ class Plugin {
 		Shortcodes::register();
 
 		add_action( 'init', array( 'Nikolareljin\\NrStocks\\Block', 'register' ) );
+		add_filter( 'the_content', array( 'Nikolareljin\\NrStocks\\Block', 'load_for_legacy_markup' ), 1 );
 		add_action( 'rest_api_init', array( 'Nikolareljin\\NrStocks\\Rest\\Routes', 'register' ) );
 		add_action( 'admin_init', array( 'Nikolareljin\\NrStocks\\Migration', 'maybe_migrate' ) );
 

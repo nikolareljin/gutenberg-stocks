@@ -24,6 +24,9 @@ const formatTime = timeFormat( '%H:%M' );
 const isFiniteNumber = ( value ) =>
 	typeof value === 'number' && Number.isFinite( value );
 
+const seriesColor = ( index, baseColor ) =>
+	index === 0 ? baseColor || PALETTE[ 0 ] : PALETTE[ index % PALETTE.length ];
+
 export const escapeXml = ( value ) =>
 	String( value ).replace( /[&<>"']/g, ( char ) => {
 		switch ( char ) {
@@ -177,10 +180,9 @@ export function buildChartModel( seriesList, opts = {} ) {
 		.y1( ( row ) => yScale( row.value ) )
 		.curve( curveMonotoneX );
 
-	const baseColor = opts.color || PALETTE[ 0 ];
 	const paths = withValues.map( ( entry, index ) => ( {
 		symbol: entry.symbol,
-		color: index === 0 ? baseColor : PALETTE[ index % PALETTE.length ],
+		color: seriesColor( index, opts.color ),
 		d: line( entry.rows ) || '',
 		area: index === 0 ? area( entry.rows ) || '' : '',
 		last: entry.rows[ entry.rows.length - 1 ],
@@ -228,8 +230,10 @@ export function buildChartModel( seriesList, opts = {} ) {
 export function renderChartSVG( seriesList, opts = {} ) {
 	const model = buildChartModel( seriesList, opts );
 	const { width, height, margin } = model;
+	const labels = opts.labels || {};
 	if ( ! model.paths.length ) {
-		return `<svg viewBox="0 0 ${ width } ${ height }" role="img" aria-label="No data"><text x="${ width / 2 }" y="${ height / 2 }" text-anchor="middle" fill="#888">No data</text></svg>`;
+		const noDataLabel = escapeXml( labels.noData || 'No data' );
+		return `<svg viewBox="0 0 ${ width } ${ height }" role="img" aria-label="${ noDataLabel }"><text x="${ width / 2 }" y="${ height / 2 }" text-anchor="middle" fill="#888">${ noDataLabel }</text></svg>`;
 	}
 
 	const grid = model.yTicks
@@ -255,7 +259,65 @@ export function renderChartSVG( seriesList, opts = {} ) {
 				`</g>`
 		)
 		.join( '' );
-	return `<svg viewBox="0 0 ${ width } ${ height }" role="img" aria-label="Price chart"><g transform="translate(${ margin.left },${ margin.top })">${ grid }${ xLabels }${ series }</g></svg>`;
+	const chartLabel = escapeXml( labels.chart || 'Price chart' );
+	return `<svg viewBox="0 0 ${ width } ${ height }" role="img" aria-label="${ chartLabel }"><g transform="translate(${ margin.left },${ margin.top })">${ grid }${ xLabels }${ series }</g></svg>`;
+}
+
+/**
+ * Renders a color key for comparison charts (nothing for a single series).
+ *
+ * @param {Array}  symbols Symbols in chart order.
+ * @param {Object} opts    { color }.
+ * @return {string} HTML.
+ */
+export function renderLegendHTML( symbols, opts = {} ) {
+	if ( ! Array.isArray( symbols ) || symbols.length < 2 ) {
+		return '';
+	}
+	const items = symbols
+		.map(
+			( symbol, index ) =>
+				`<li><span class="nr-stocks-legend__swatch" style="background:${ escapeXml( seriesColor( index, opts.color ) ) }"></span>${ escapeXml( symbol ) }</li>`
+		)
+		.join( '' );
+	return `<ul class="nr-stocks-legend">${ items }</ul>`;
+}
+
+const formatQuoteNumber = ( value ) =>
+	Number( value ).toLocaleString( 'en-US', { maximumFractionDigits: 4 } );
+
+/**
+ * Renders the quote panel from baked per-symbol quotes.
+ *
+ * @param {Array} quotes List of { symbol, quote }.
+ * @return {string} HTML, empty when no quote has a price.
+ */
+export function renderQuotesHTML( quotes ) {
+	if ( ! Array.isArray( quotes ) ) {
+		return '';
+	}
+	const items = quotes
+		.filter(
+			( { quote } ) =>
+				quote && quote.price !== null && isFiniteNumber( +quote.price )
+		)
+		.map( ( { symbol, quote } ) => {
+			const percent = Number( quote.change_percent );
+			const hasChange =
+				quote.change_percent !== null &&
+				quote.change_percent !== undefined &&
+				Number.isFinite( percent );
+			const direction = percent < 0 ? 'down' : 'up';
+			const change = hasChange
+				? `<span class="nr-stocks-quote__change is-${ direction }">${ percent >= 0 ? '+' : '' }${ percent.toFixed( 2 ) }%</span>`
+				: '';
+			const currency = quote.currency
+				? ` ${ escapeXml( quote.currency ) }`
+				: '';
+			return `<li class="nr-stocks-quote"><span class="nr-stocks-quote__symbol">${ escapeXml( symbol ) }</span> <span class="nr-stocks-quote__price">${ formatQuoteNumber( quote.price ) }${ currency }</span> ${ change }</li>`;
+		} )
+		.join( '' );
+	return items ? `<ul class="nr-stocks-quotes">${ items }</ul>` : '';
 }
 
 /**
