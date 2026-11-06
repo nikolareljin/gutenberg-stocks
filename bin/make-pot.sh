@@ -28,8 +28,13 @@ wp i18n make-pot --allow-root . languages/nr-stocks.pot \
   --exclude=".git,.github,.build,build,dist,vendor,test,tests,node_modules,bin,scripts,docs" \
   --headers='\''{"Report-Msgid-Bugs-To":"https://github.com/nikolareljin/gutenberg-stocks/issues"}'\'''
 
-# Normalize gettext template placeholders (email-shaped dummies trip
-# secret scanners on commit); translators fill real values in .po files.
-sed -i -e 's/^"Last-Translator: .*"$/"Last-Translator: FULL NAME\\n"/' -e 's/^"Language-Team: .*"$/"Language-Team: LANGUAGE\\n"/' languages/nr-stocks.pot
+# Normalize volatile/template headers so regeneration is idempotent: the
+# email-shaped dummies trip secret scanners on commit (translators fill
+# real values in .po files), and the timestamp/generator would otherwise
+# make the i18n bot propose a PR on every run with no string changes.
+sed -i -e 's/^"Last-Translator: .*"$/"Last-Translator: FULL NAME\\n"/' \
+  -e 's/^"Language-Team: .*"$/"Language-Team: LANGUAGE\\n"/' \
+  -e '/^"POT-Creation-Date: /d' \
+  -e 's/^"X-Generator: .*"$/"X-Generator: WP-CLI\\n"/' languages/nr-stocks.pot
 
 echo "[DONE] languages/nr-stocks.pot updated."
