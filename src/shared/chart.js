@@ -159,6 +159,24 @@ const formatAxisLabels = ( values ) => {
 };
 
 /**
+ * Estimates the rendered width of an axis label at the 11px axis font. Widths
+ * are generous sans-serif averages, so the estimate errs wide.
+ *
+ * @param {string} label Axis label.
+ * @return {number} Width in pixels.
+ */
+const estimateLabelWidth = ( label ) =>
+	[ ...label ].reduce( ( sum, char ) => {
+		if ( ',.'.includes( char ) ) {
+			return sum + 3.5;
+		}
+		if ( '%MW'.includes( char ) ) {
+			return sum + 10;
+		}
+		return sum + 7;
+	}, 0 );
+
+/**
  * Builds scales, paths, and ticks for one or more series.
  *
  * @param {Array}  seriesList List of { symbol, rows }.
@@ -169,7 +187,6 @@ export function buildChartModel( seriesList, opts = {} ) {
 	const width = opts.width || 640;
 	const height = opts.height || 360;
 	const margin = { top: 12, right: 12, bottom: 28, left: 56 };
-	const innerWidth = width - margin.left - margin.right;
 	const innerHeight = height - margin.top - margin.bottom;
 
 	const prepared = ( Array.isArray( seriesList ) ? seriesList : [] )
@@ -219,6 +236,23 @@ export function buildChartModel( seriesList, opts = {} ) {
 		max += span * 0.05;
 	}
 
+	const tickValues = [ 0, 1, 2, 3 ].map(
+		( step ) => min + ( ( max - min ) * step ) / 3
+	);
+	const plainLabels = normalized ? [] : formatAxisLabels( tickValues );
+	const tickLabels = tickValues.map( ( value, index ) =>
+		normalized
+			? `${ value >= 0 ? '+' : '' }${ value.toFixed( 2 ) }%`
+			: plainLabels[ index ]
+	);
+	// The y labels sit in the left margin: widen it so none is clipped.
+	const labelWidth = Math.max( ...tickLabels.map( estimateLabelWidth ) );
+	margin.left = Math.min(
+		Math.max( margin.left, Math.ceil( labelWidth + 12 ) ),
+		Math.floor( width / 3 )
+	);
+	const innerWidth = width - margin.left - margin.right;
+
 	const xScale = scaleTime()
 		.domain( [
 			new Date( Math.min( ...allDates ) ),
@@ -247,16 +281,10 @@ export function buildChartModel( seriesList, opts = {} ) {
 		last: entry.rows[ entry.rows.length - 1 ],
 	} ) );
 
-	const tickValues = [ 0, 1, 2, 3 ].map(
-		( step ) => min + ( ( max - min ) * step ) / 3
-	);
-	const plainLabels = formatAxisLabels( tickValues );
 	const yTicks = tickValues.map( ( value, index ) => ( {
 		value,
 		y: yScale( value ),
-		label: normalized
-			? `${ value >= 0 ? '+' : '' }${ value.toFixed( 2 ) }%`
-			: plainLabels[ index ],
+		label: tickLabels[ index ],
 	} ) );
 
 	const spanMs = Math.max( ...allDates ) - Math.min( ...allDates );

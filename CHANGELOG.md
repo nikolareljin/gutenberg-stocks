@@ -4,6 +4,17 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- On WordPress 6.3 to 6.5 the Stock Chart block loads in the editor again. The editor script needs `react-jsx-runtime`, which WordPress only ships from 6.6, so the plugin now registers a small fallback for it.
+- The Stock Chart block icon shows in the editor inserter, toolbar, and sidebar.
+- The chart's left margin widens to fit long axis labels, so very small prices and comparison changes above 10,000% are no longer clipped.
+- A quote answer with no price, such as an unknown CoinGecko quote currency, is reported as `upstream_error` instead of a successful empty quote.
+
+### Changed
+
+- Directory screenshots recaptured from 1.0.1 at 2x resolution, and shown in the README and on the project site.
+
 ## [1.0.1] - 2026-11-06
 
 ### Fixed

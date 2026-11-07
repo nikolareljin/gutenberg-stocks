@@ -255,6 +255,7 @@ fi
 rm -f "${COOKIES}"
 
 info "Checking WP-CLI commands…"
+check "editor script dependencies are registered" $compose run --rm wpcli sh -lc "wp eval '\$h = wp_scripts(); if ( empty( \$h->registered[\"nr-stocks-stock-chart-editor-script\"] ) ) { exit( 1 ); } foreach ( \$h->registered[\"nr-stocks-stock-chart-editor-script\"]->deps as \$d ) { if ( ! wp_script_is( \$d, \"registered\" ) ) { exit( 1 ); } }'"
 check "cli providers" $compose run --rm wpcli sh -lc "wp nr-stocks providers | grep -q frankfurter"
 check "cli cache purge" $compose run --rm wpcli sh -lc "wp nr-stocks cache purge | grep -qi purged"
 

@@ -359,6 +359,73 @@ describe( 'buildChartModel y axis accuracy', () => {
 	);
 } );
 
+describe( 'buildChartModel left margin', () => {
+	const model = ( low, high, extra = {} ) =>
+		buildChartModel(
+			[
+				{
+					symbol: 'A',
+					rows: [
+						{ date: '2026-10-01', close: low },
+						{ date: '2026-10-02', close: high },
+					],
+				},
+			],
+			extra
+		);
+
+	it( 'keeps the default margin for short labels', () => {
+		expect( model( 148.3, 151.9 ).margin.left ).toBe( 56 );
+	} );
+
+	it.each( [
+		[ 0.0000123, 0.0000124 ],
+		[ 1.21e-9, 1.26e-9 ],
+		[ 100000.1, 100000.4 ],
+	] )( 'fits long price labels: %d to %d', ( low, high ) => {
+		const { margin, yTicks } = model( low, high );
+		const longest = Math.max( ...yTicks.map( ( t ) => t.label.length ) );
+		expect( margin.left ).toBeGreaterThanOrEqual( longest * 7 + 12 - 8 );
+	} );
+
+	it( 'fits comparison labels above 10,000%', () => {
+		const chart = buildChartModel( [
+			{
+				symbol: 'A',
+				rows: [
+					{ date: '2026-10-01', close: 1 },
+					{ date: '2026-10-02', close: 250 },
+				],
+			},
+			{
+				symbol: 'B',
+				rows: [
+					{ date: '2026-10-01', close: 1 },
+					{ date: '2026-10-02', close: 2 },
+				],
+			},
+		] );
+		expect( chart.yTicks[ 3 ].label ).toBe( '+26145.00%' );
+		expect( chart.margin.left ).toBeGreaterThan( 56 );
+	} );
+
+	it( 'never takes more than a third of the width', () => {
+		expect(
+			model( 1.21e-9, 1.26e-9, { width: 120 } ).margin.left
+		).toBeLessThanOrEqual( 40 );
+	} );
+
+	it( 'draws the plot inside the widened margin', () => {
+		const chart = model( 0.0000123, 0.0000124 );
+		const xs = chart.paths[ 0 ].d.match( /[ML]([-\d.]+)/g ) || [];
+		const maxX = Math.max( ...xs.map( ( m ) => Number( m.slice( 1 ) ) ) );
+		expect( maxX ).toBeCloseTo(
+			chart.width - chart.margin.left - chart.margin.right,
+			0
+		);
+	} );
+} );
+
 describe( 'renderChartSVG x axis', () => {
 	it( 'keeps the last label inside the chart', () => {
 		const rows = [
