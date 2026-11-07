@@ -113,7 +113,7 @@ class Rest_Provider {
 		}
 
 		$range       = max( 1, min( 365, (int) $range ) );
-		$fetch_range = self::fetch_range( $range );
+		$fetch_range = self::fetch_range( $range, $op );
 		$interval    = self::canonical_interval( $series, $interval );
 
 		$params = self::build_params( $config, $provider_id, $symbol, $asset, $fetch_range, $interval, $key, $series );
@@ -369,10 +369,17 @@ class Rest_Provider {
 	/**
 	 * Smallest fetch bucket that covers a requested range.
 	 *
-	 * @param int $range Requested point count.
+	 * An upstream URL that takes no range or date returns the same data for every
+	 * range, so those operations share a single entry.
+	 *
+	 * @param int   $range Requested point count.
+	 * @param array $op    Operation config.
 	 * @return int
 	 */
-	protected static function fetch_range( $range ) {
+	protected static function fetch_range( $range, $op ) {
+		if ( isset( $op['url'] ) && false === strpos( $op['url'], '{range}' ) && false === strpos( $op['url'], '{from_date}' ) ) {
+			return 365;
+		}
 		foreach ( self::RANGE_BUCKETS as $bucket ) {
 			if ( $range <= $bucket ) {
 				return $bucket;

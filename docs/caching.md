@@ -25,8 +25,9 @@ endpoint (not recommended in production).
   object caching, advisory transient otherwise, so a tight race can still
   fetch twice). Parallel cold requests wait up to 13s for the fetch in
   progress (`nr_stocks_lock_wait_ms` filter), then report `busy`.
-- Ranges share entries: upstream requests use 30, 90, 180, or 365 points and
-  each response is sliced to the requested `range`. Each caller still applies
+- Ranges share entries: upstream requests use 30, 90, 180, or 365 points, or a
+  single entry when the provider URL takes no range, and each response is sliced
+  to the requested `range`. Each caller still applies
   its own TTL, so a long per-block TTL does not freeze other charts.
 - Entries outlive their TTL by one hour. A fresh read still honors the TTL, but
   an older entry is served when a refresh fails, is over budget, or is already

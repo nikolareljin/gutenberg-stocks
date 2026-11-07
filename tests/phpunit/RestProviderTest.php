@@ -274,6 +274,15 @@ class NR_Stocks_Rest_Provider_Test extends WP_UnitTestCase {
 		$this->assertSame( 'parse_error', $result['error'] );
 	}
 
+	public function test_ranges_share_one_fetch_when_the_url_takes_no_range() {
+		$this->mock_http( self::fixture( 'av_daily.csv' ) );
+		$short = Rest_Provider::series( 'alphavantage', 'IBM', 'daily', 1 );
+		$long  = Rest_Provider::series( 'alphavantage', 'IBM', 'daily', 300 );
+		$this->assertCount( 1, $this->mock_calls );
+		$this->assertCount( 1, $short['data'] );
+		$this->assertGreaterThan( 1, count( $long['data'] ) );
+	}
+
 	public function test_coingecko_daily_series_has_one_row_per_day() {
 		$start  = 1793721600000;
 		$prices = array();
