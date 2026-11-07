@@ -97,6 +97,8 @@ class Cache {
 	 * @return int 0 when allowed, otherwise seconds until the window resets.
 	 */
 	public static function throttle( $key, $limit, $window = 60 ) {
+		// Other requests update this counter while a slow request is running.
+		self::forget_local_copy( $key );
 		$now   = time();
 		$state = get_transient( $key );
 		if ( ! is_array( $state ) || ! isset( $state['count'], $state['reset'] ) || (int) $state['reset'] <= $now ) {
@@ -246,7 +248,12 @@ class Cache {
 					return $hit;
 				}
 				if ( ! self::lock_held( $key ) ) {
-					// The holder finished without storing a result for us.
+					// The holder may have stored its result just before releasing.
+					self::forget_local_copy( $key );
+					$hit = self::read_response( $key );
+					if ( null !== $hit && ( empty( $hit['ok'] ) || $hit['fetched_at'] + $ttl > time() ) ) {
+						return $hit;
+					}
 					break;
 				}
 			}

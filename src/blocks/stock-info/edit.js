@@ -75,11 +75,12 @@ export default function Edit( { attributes, setAttributes } ) {
 	}, [] );
 
 	useEffect( () => {
+		// Bumped before the early return so a pending response cannot land later.
+		const id = ++searchRequestId.current;
 		if ( debouncedQuery.trim().length < 2 ) {
 			setSuggestions( [] );
 			return;
 		}
-		const id = ++searchRequestId.current;
 		apiFetch( {
 			path: restPath( 'search', { provider, q: debouncedQuery.trim() } ),
 		} )
@@ -100,12 +101,13 @@ export default function Edit( { attributes, setAttributes } ) {
 	}, [ debouncedQuery, provider ] );
 
 	useEffect( () => {
+		// Bumped before the early return so a pending response cannot land later.
+		const id = ++previewRequestId.current;
 		if ( ! symbols.length ) {
 			setPreview( null );
 			setPreviewState( 'idle' );
 			return;
 		}
-		const id = ++previewRequestId.current;
 		setPreviewState( 'loading' );
 		apiFetch( {
 			path: restPath( 'series', {

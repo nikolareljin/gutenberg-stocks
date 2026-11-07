@@ -137,15 +137,52 @@ describe( 'renderChartSVG', () => {
 	} );
 } );
 
+describe( 'normalizeRows with missing prices', () => {
+	it( 'drops null and empty closes instead of plotting zero', () => {
+		const out = normalizeRows( [
+			{ date: '2026-10-01', close: 5 },
+			{ date: '2026-10-02', close: null },
+			{ date: '2026-10-03', close: '' },
+			{ date: '2026-10-04', close: 6 },
+		] );
+		expect( out.map( ( row ) => row.close ) ).toEqual( [ 5, 6 ] );
+	} );
+} );
+
 describe( 'renderLegendHTML', () => {
+	const rows = [
+		{ date: '2026-10-01', close: 1 },
+		{ date: '2026-10-02', close: 2 },
+	];
+
 	it( 'is empty for a single series', () => {
-		expect( renderLegendHTML( [ 'AAPL' ] ) ).toBe( '' );
+		expect( renderLegendHTML( [ { symbol: 'AAPL', rows } ] ) ).toBe( '' );
+	} );
+
+	it( 'matches chart colors when the chart drops a series', () => {
+		const html = renderLegendHTML(
+			[
+				{ symbol: 'BAD', rows: [ { date: 'nope', close: 1 } ] },
+				{ symbol: 'B', rows },
+				{ symbol: 'C', rows },
+			],
+			{ color: '#123456' }
+		);
+		expect( html ).not.toContain( 'BAD' );
+		expect( html ).toContain( 'background:#123456"></span>B</li>' );
+		expect( html ).toContain(
+			`background:${ PALETTE[ 1 ] }"></span>C</li>`
+		);
 	} );
 
 	it( 'lists symbols with chart colors and escapes them', () => {
-		const html = renderLegendHTML( [ 'AAPL', '<b>' ], {
-			color: '#123456',
-		} );
+		const html = renderLegendHTML(
+			[
+				{ symbol: 'AAPL', rows },
+				{ symbol: '<b>', rows },
+			],
+			{ color: '#123456' }
+		);
 		expect( html ).toContain( 'background:#123456' );
 		expect( html ).toContain( `background:${ PALETTE[ 1 ] }` );
 		expect( html ).toContain( '&lt;b&gt;' );

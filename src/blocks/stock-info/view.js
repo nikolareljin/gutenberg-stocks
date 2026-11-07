@@ -55,10 +55,8 @@ const renderFigure = ( figure ) => {
 	} );
 	canvas.insertAdjacentHTML(
 		'afterend',
-		renderLegendHTML(
-			seriesList.map( ( { symbol } ) => symbol ),
-			{ color: payload.color }
-		) + renderQuotesHTML( seriesList )
+		renderLegendHTML( seriesList, { color: payload.color } ) +
+			renderQuotesHTML( seriesList )
 	);
 	const fallback = figure.querySelector( '.nr-stocks-fallback' );
 	if ( fallback ) {

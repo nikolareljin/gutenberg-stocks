@@ -26,9 +26,10 @@ docker run --rm \
   --exclude=".git,.github,.build,build,dist,vendor,test,tests,node_modules,bin,scripts,docs" \
   --headers='{"Report-Msgid-Bugs-To":"https://github.com/nikolareljin/gutenberg-stocks/issues"}'
 
-# Email-shaped gettext placeholders trip secret scanners; the timestamp and
-# generator version would change the file on every run.
-sed -e 's/^"Last-Translator: .*"$/"Last-Translator: FULL NAME\\n"/' \
+# Email-shaped gettext placeholders trip secret scanners; the plugin version,
+# timestamp, and generator version would change the file with no new strings.
+sed -e 's/^"Project-Id-Version: .*"$/"Project-Id-Version: NR Stocks\\n"/' \
+  -e 's/^"Last-Translator: .*"$/"Last-Translator: FULL NAME\\n"/' \
   -e 's/^"Language-Team: .*"$/"Language-Team: LANGUAGE\\n"/' \
   -e '/^"POT-Creation-Date: /d' \
   -e 's/^"X-Generator: .*"$/"X-Generator: WP-CLI\\n"/' \

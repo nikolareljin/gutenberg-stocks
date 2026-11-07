@@ -237,7 +237,32 @@ class NR_Stocks_Rest_Test extends WP_UnitTestCase {
 		$this->assertTrue( $data['MSFT']['ok'] );
 	}
 
-	public function test_rate_limit_retry_after_counts_down_and_ip_is_filterable() {
+	public function test_retry_after_reports_the_remaining_window() {
+		$settings                    = Nikolareljin\NrStocks\Settings::get();
+		$settings['rest_rate_limit'] = 1;
+		update_option( NR_STOCKS_OPTION, $settings );
+		$client = function () {
+			return '198.51.100.7';
+		};
+		add_filter( 'nr_stocks_client_ip', $client );
+		set_transient(
+			'nrstx_rl_' . md5( '198.51.100.7|/nr-stocks/v1/providers' ),
+			array(
+				'count' => 1,
+				'reset' => time() + 10,
+			),
+			10
+		);
+
+		$limited = $this->get( '/nr-stocks/v1/providers' );
+		remove_filter( 'nr_stocks_client_ip', $client );
+
+		$this->assertSame( 429, $limited->get_status() );
+		$this->assertGreaterThan( 0, $limited->get_data()['data']['retry_after'] );
+		$this->assertLessThanOrEqual( 10, $limited->get_data()['data']['retry_after'] );
+	}
+
+	public function test_rate_limit_ip_is_filterable() {
 		$settings                    = Nikolareljin\NrStocks\Settings::get();
 		$settings['rest_rate_limit'] = 1;
 		update_option( NR_STOCKS_OPTION, $settings );
@@ -245,7 +270,6 @@ class NR_Stocks_Rest_Test extends WP_UnitTestCase {
 		$this->assertSame( 200, $this->get( '/nr-stocks/v1/providers' )->get_status() );
 		$limited = $this->get( '/nr-stocks/v1/providers' );
 		$this->assertSame( 429, $limited->get_status() );
-		$this->assertLessThanOrEqual( 60, $limited->get_data()['data']['retry_after'] );
 
 		$other_client = function () {
 			return '203.0.113.9';

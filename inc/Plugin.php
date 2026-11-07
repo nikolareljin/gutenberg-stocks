@@ -40,7 +40,9 @@ class Plugin {
 		Shortcodes::register();
 
 		add_action( 'init', array( 'Nikolareljin\\NrStocks\\Block', 'register' ) );
-		add_filter( 'the_content', array( 'Nikolareljin\\NrStocks\\Block', 'load_for_legacy_markup' ), 1 );
+		// After do_blocks (9), so saved charts inside synced patterns are visible.
+		add_filter( 'the_content', array( 'Nikolareljin\\NrStocks\\Block', 'load_for_legacy_markup' ), 12 );
+		add_filter( 'widget_block_content', array( 'Nikolareljin\\NrStocks\\Block', 'load_for_legacy_markup' ), 12 );
 		add_action( 'rest_api_init', array( 'Nikolareljin\\NrStocks\\Rest\\Routes', 'register' ) );
 		add_action( 'admin_init', array( 'Nikolareljin\\NrStocks\\Migration', 'maybe_migrate' ) );
 

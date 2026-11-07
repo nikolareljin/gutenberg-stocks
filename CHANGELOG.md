@@ -17,7 +17,7 @@ All notable changes to this project are documented in this file.
 - A long per-block TTL no longer freezes other charts of the same symbol, a failed refresh keeps the last good data, and pages where every symbol failed are not stored by page caches.
 - The settings page no longer prints saved API keys into the page. Leave a field empty to keep its key, or tick "Remove the saved key".
 - Editor preview reports symbols with no data, and typing in search no longer leaves it loading.
-- Uninstall removes the cache index option. Remaining editor and chart labels are translatable.
+- Uninstall removes all plugin data from every site on a multisite network, including under an object cache. Remaining editor and chart labels are translatable.
 
 ### Changed
 

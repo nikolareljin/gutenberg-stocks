@@ -198,6 +198,82 @@ class NR_Stocks_Cache_Test extends WP_UnitTestCase {
 		$this->assertLessThan( 2, microtime( true ) - $started );
 	}
 
+	public function test_waiter_sees_a_result_stored_just_before_the_lock_was_released() {
+		global $wpdb;
+		$key = 'nrstx_phpunit_race';
+		set_transient( $key . '_lock', 1, 15 );
+		$lock_reads = 0;
+		// Runs as the waiter checks the lock, right after its last read missed.
+		$holder_finishes = function ( $pre ) use ( &$lock_reads, $key, $wpdb ) {
+			if ( 2 === ++$lock_reads ) {
+				$value = array(
+					'data'       => array(
+						'ok'   => true,
+						'data' => array( 'from-holder' ),
+					),
+					'fetched_at' => time(),
+				);
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- simulates another process.
+				$wpdb->insert(
+					$wpdb->options,
+					array(
+						'option_name'  => '_transient_timeout_' . $key,
+						'option_value' => time() + 300,
+						'autoload'     => 'off',
+					)
+				);
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- simulates another process.
+				$wpdb->insert(
+					$wpdb->options,
+					array(
+						'option_name'  => '_transient_' . $key,
+						'option_value' => maybe_serialize( $value ),
+						'autoload'     => 'off',
+					)
+				);
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- simulates another process.
+				$wpdb->delete( $wpdb->options, array( 'option_name' => '_transient_' . $key . '_lock' ) );
+			}
+			return $pre;
+		};
+		add_filter( 'pre_transient_' . $key . '_lock', $holder_finishes );
+		$result = Cache::get_or_fetch(
+			$key,
+			300,
+			function () {
+				return array(
+					'ok'   => true,
+					'data' => array( 'must-not-fetch' ),
+				);
+			}
+		);
+		remove_filter( 'pre_transient_' . $key . '_lock', $holder_finishes );
+
+		$this->assertTrue( $result['ok'] );
+		$this->assertSame( array( 'from-holder' ), $result['data'] );
+	}
+
+	public function test_throttle_sees_counts_written_by_other_requests() {
+		global $wpdb;
+		$key = 'nrstx_phpunit_rl_shared';
+		$this->assertSame( 0, Cache::throttle( $key, 2, 60 ) );
+		// Another request used up the window after this request cached its copy.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- simulates another process.
+		$wpdb->update(
+			$wpdb->options,
+			array(
+				'option_value' => maybe_serialize(
+					array(
+						'count' => 2,
+						'reset' => time() + 60,
+					)
+				),
+			),
+			array( 'option_name' => '_transient_' . $key )
+		);
+		$this->assertGreaterThan( 0, Cache::throttle( $key, 2, 60 ) );
+	}
+
 	public function test_waiter_stops_when_the_holder_stored_nothing() {
 		global $wpdb;
 		$key = 'nrstx_phpunit_gone';

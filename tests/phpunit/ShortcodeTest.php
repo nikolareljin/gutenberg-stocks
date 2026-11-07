@@ -65,6 +65,21 @@ class NR_Stocks_Shortcode_Test extends WP_UnitTestCase {
 		$this->assertStringContainsString( '</script><b>', json_decode( $match[1], true )['symbols']['AAPL']['currency'] );
 	}
 
+	public function test_legacy_scan_runs_after_blocks_render() {
+		$priority = has_filter( 'the_content', array( Nikolareljin\NrStocks\Block::class, 'load_for_legacy_markup' ) );
+		$this->assertGreaterThan( has_filter( 'the_content', 'do_blocks' ), $priority );
+	}
+
+	public function test_only_temporary_errors_are_kept_out_of_page_caches() {
+		$renderer = Nikolareljin\NrStocks\Renderer::class;
+		foreach ( array( 'busy', 'http_error', 'upstream_limit', 'upstream_budget', 'upstream_error', 'parse_error', 'fetch_failed' ) as $code ) {
+			$this->assertTrue( $renderer::is_temporary_error( $code ), $code );
+		}
+		foreach ( array( 'unsupported_series', 'unsupported_pair', 'bad_symbol', 'unknown_provider', 'missing_key', 'forbidden_host' ) as $code ) {
+			$this->assertFalse( $renderer::is_temporary_error( $code ), $code );
+		}
+	}
+
 	public function test_legacy_markup_detection() {
 		$block = Nikolareljin\NrStocks\Block::class;
 		$this->assertTrue( $block::has_legacy_markup( '<div class="stock-information-item" data-symbol="IBM"></div>' ) );

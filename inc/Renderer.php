@@ -70,7 +70,12 @@ class Renderer {
 		}
 
 		if ( count( $symbols ) === $failed ) {
-			self::prevent_page_caching();
+			foreach ( $symbols as $entry ) {
+				if ( self::is_temporary_error( $entry['error'] ) ) {
+					self::prevent_page_caching();
+					break;
+				}
+			}
 			return sprintf(
 				'<div class="nr-stocks nr-stocks-error" data-error="%s"><p>%s</p></div>',
 				esc_attr( reset( $symbols )['error'] ),
@@ -114,6 +119,20 @@ class Renderer {
 			wp_json_encode( $payload, JSON_HEX_TAG | JSON_HEX_AMP ),
 			esc_attr__( 'Stock price chart', 'nr-stocks' ),
 			$fallback
+		);
+	}
+
+	/**
+	 * Whether an error can clear up without the site owner changing anything.
+	 *
+	 * @param string $code Error code.
+	 * @return bool
+	 */
+	public static function is_temporary_error( $code ) {
+		return ! in_array(
+			$code,
+			array( 'unsupported_series', 'unsupported_asset', 'unsupported_pair', 'bad_symbol', 'unknown_provider', 'missing_key', 'forbidden_host' ),
+			true
 		);
 	}
 

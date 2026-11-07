@@ -69,7 +69,9 @@ export function normalizeRows( rows ) {
 			return;
 		}
 		const date = toDate( row.date );
-		const close = Number( row.close );
+		// Number( null ) and Number( '' ) are 0, which is not a price.
+		const close =
+			row.close === null || row.close === '' ? NaN : Number( row.close );
 		if ( ! date || ! isFiniteNumber( close ) ) {
 			return;
 		}
@@ -266,18 +268,20 @@ export function renderChartSVG( seriesList, opts = {} ) {
 /**
  * Renders a color key for comparison charts (nothing for a single series).
  *
- * @param {Array}  symbols Symbols in chart order.
- * @param {Object} opts    { color }.
+ * @param {Array}  seriesList List of { symbol, rows }, as given to the chart.
+ * @param {Object} opts       { color }.
  * @return {string} HTML.
  */
-export function renderLegendHTML( symbols, opts = {} ) {
-	if ( ! Array.isArray( symbols ) || symbols.length < 2 ) {
+export function renderLegendHTML( seriesList, opts = {} ) {
+	// From the model, so a series the chart dropped cannot shift the colors.
+	const { paths } = buildChartModel( seriesList, opts );
+	if ( paths.length < 2 ) {
 		return '';
 	}
-	const items = symbols
+	const items = paths
 		.map(
-			( symbol, index ) =>
-				`<li><span class="nr-stocks-legend__swatch" style="background:${ escapeXml( seriesColor( index, opts.color ) ) }"></span>${ escapeXml( symbol ) }</li>`
+			( { symbol, color } ) =>
+				`<li><span class="nr-stocks-legend__swatch" style="background:${ escapeXml( color ) }"></span>${ escapeXml( symbol ) }</li>`
 		)
 		.join( '' );
 	return `<ul class="nr-stocks-legend">${ items }</ul>`;

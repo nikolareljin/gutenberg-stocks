@@ -2,7 +2,7 @@
 # This file is distributed under the GPLv2 or later.
 msgid ""
 msgstr ""
-"Project-Id-Version: NR Stocks 1.0.0\n"
+"Project-Id-Version: NR Stocks\n"
 "Report-Msgid-Bugs-To: https://github.com/nikolareljin/gutenberg-stocks/issues\n"
 "Last-Translator: FULL NAME\n"
 "Language-Team: LANGUAGE\n"

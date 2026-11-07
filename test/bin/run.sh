@@ -4,7 +4,8 @@
 #
 # Env: NRSTX_TEST_PORT (default 8080), NRSTX_WP_VERSION (default latest).
 # Series assertions use the keyless Frankfurter provider, so no API keys are
-# needed. Upstream outages degrade to error-envelope assertions (see below).
+# needed. Block and shortcode checks need it reachable; REST checks fall back to
+# error-envelope assertions during an outage (see below).
 set -euo pipefail
 
 cd "$(dirname "$0")/../.."
@@ -105,7 +106,9 @@ fi
 
 info "Checking REST series endpoint (keyless provider)…"
 SERIES_JSON="$(curl -fsSL "${BASE_URL}/wp-json/nr-stocks/v1/series?provider=frankfurter&symbols=EUR/USD&range=5")"
+UPSTREAM_UP=0
 if grep -q '"ok":true' <<<"${SERIES_JSON}"; then
+  UPSTREAM_UP=1
   check "series returns rows" grep -q '"date":"20' <<<"${SERIES_JSON}"
 else
   # Upstream outage: the contract still holds (machine-readable error).
@@ -115,10 +118,14 @@ fi
 
 info "Checking REST cache headers + HIT on repeat…"
 HEADERS_ONE="$(curl -fsSL -D - -o /dev/null "${BASE_URL}/wp-json/nr-stocks/v1/series?provider=frankfurter&symbols=EUR/USD&range=5")"
-check "series sends Cache-Control" grep -qi 'cache-control: .*max-age=' <<<"${HEADERS_ONE}"
 check "series sends ETag" grep -qi '^etag:' <<<"${HEADERS_ONE}"
 HEADERS_TWO="$(curl -fsSL -D - -o /dev/null "${BASE_URL}/wp-json/nr-stocks/v1/series?provider=frankfurter&symbols=EUR/USD&range=5")"
 check "repeat request served from cache" grep -qi 'x-nr-stocks-cache: HIT' <<<"${HEADERS_TWO}"
+if [[ "${UPSTREAM_UP}" -eq 1 ]]; then
+  check "series sends Cache-Control" grep -qi 'cache-control: .*max-age=' <<<"${HEADERS_ONE}"
+else
+  check "failed series is not stored" grep -qi 'cache-control: no-store' <<<"${HEADERS_ONE}"
+fi
 
 info "Checking REST validation + rate limit…"
 BAD_JSON="$(curl -sSL "${BASE_URL}/wp-json/nr-stocks/v1/series?symbols=!!!")"
@@ -136,19 +143,25 @@ check "limited response is not stored" grep -qi '^cache-control: no-store' <<<"$
 check "limited response sends Retry-After" grep -qi '^retry-after: [0-9]' <<<"${LIMIT_HEADERS}"
 $compose run --rm wpcli sh -lc "wp option patch update nr_stocks_settings rest_rate_limit 60" >/dev/null
 
-info "Checking parallel cold requests share one fetch…"
+info "Checking parallel cold requests all get the result…"
 $compose run --rm wpcli sh -lc "wp nr-stocks cache purge" >/dev/null
 PARALLEL_URL="${BASE_URL}/wp-json/nr-stocks/v1/series?provider=frankfurter&symbols=USD/JPY&range=5"
-curl -sSL -o test/tmp/parallel-1.json "${PARALLEL_URL}" &
-curl -sSL -o test/tmp/parallel-2.json "${PARALLEL_URL}" &
-curl -sSL -o test/tmp/parallel-3.json "${PARALLEL_URL}" &
-wait
-if grep -q '"error":"busy"' test/tmp/parallel-1.json test/tmp/parallel-2.json test/tmp/parallel-3.json; then
-  err "FAIL: a waiting request reported busy instead of the fetched result"
-  fail=1
-else
-  info "PASS: waiting requests received the fetched result"
-fi
+PARALLEL_PIDS=()
+for n in 1 2 3; do
+  rm -f "test/tmp/parallel-${n}.json"
+  curl -fsSL -o "test/tmp/parallel-${n}.json" "${PARALLEL_URL}" &
+  PARALLEL_PIDS+=("$!")
+done
+for pid in "${PARALLEL_PIDS[@]}"; do
+  wait "${pid}" || { err "FAIL: a parallel request failed"; fail=1; }
+done
+for n in 1 2 3; do
+  if [[ "${UPSTREAM_UP}" -eq 1 ]]; then
+    check "parallel request ${n} got the result" grep -q '"ok":true' "test/tmp/parallel-${n}.json"
+  else
+    check "parallel request ${n} got an envelope" grep -q '"ok":' "test/tmp/parallel-${n}.json"
+  fi
+done
 
 info "Checking CORS on plugin routes…"
 CORS_ROUTE="${BASE_URL}/wp-json/nr-stocks/v1/providers"
@@ -192,6 +205,11 @@ LEGACY_POST=$($compose run --rm wpcli sh -lc "wp post create --post_type=post --
 LEGACY_HTML="$(curl -fsSL "${BASE_URL}/?p=${LEGACY_POST}")"
 check "legacy post loads view script" grep -q 'nr-stocks-view-js' <<<"${LEGACY_HTML}"
 check "legacy post gets the REST URL" grep -q 'window.nrStocks' <<<"${LEGACY_HTML}"
+
+PATTERN_ID=$($compose run --rm wpcli sh -lc "wp post create --post_type=wp_block --post_status=publish --post_title='NR Stocks legacy pattern' --post_content='<!-- wp:html --><div class=\"stock-information-item\" data-symbol=\"IBM\"></div><!-- /wp:html -->' --porcelain" | tr -d '\r')
+PATTERN_POST=$($compose run --rm wpcli sh -lc "wp post create --post_type=post --post_status=publish --post_title='NR Stocks legacy in pattern' --post_content='<!-- wp:block {\"ref\":${PATTERN_ID}} /-->' --porcelain" | tr -d '\r')
+PATTERN_HTML="$(curl -fsSL "${BASE_URL}/?p=${PATTERN_POST}")"
+check "legacy chart in a synced pattern loads view script" grep -q 'nr-stocks-view-js' <<<"${PATTERN_HTML}"
 
 info "Checking settings save and purge through wp-admin…"
 COOKIES="$(mktemp)"
