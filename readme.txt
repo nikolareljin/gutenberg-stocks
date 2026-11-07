@@ -4,7 +4,7 @@ Donate link: https://profiles.wordpress.org/nreljin/
 Tags: stocks, charts, forex, crypto, block
 Requires at least: 6.3
 Tested up to: 7.1
-Stable tag: 1.0.1
+Stable tag: 1.0.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -58,6 +58,13 @@ Posts using the 0.x `dj/stock-information` block keep their saved charts on the 
 
 == Changelog ==
 
+= 1.0.2 =
+* Fixed: on WordPress 6.3 to 6.5 the Stock Chart block loads in the editor again.
+* Fixed: the block icon shows in the inserter, toolbar, and sidebar.
+* Fixed: long axis labels on very small prices and large comparison changes are no longer clipped.
+* Fixed: a quote with no price is reported as an error instead of an empty quote.
+* New screenshots.
+
 = 1.0.1 =
 * Fixed: the settings page can save again, and 0.x settings migrate on activation.
 * Fixed: saved 0.x charts load on the frontend, and the quote panel and comparison legend appear.
@@ -77,6 +84,9 @@ Posts using the 0.x `dj/stock-information` block keep their saved charts on the 
 * Breaking: the 0.x `dj/stock-information` block is retired; saved frontend output keeps rendering, settings migrate automatically.
 
 == Upgrade Notice ==
+
+= 1.0.2 =
+Fixes the block editor on WordPress 6.3 to 6.5, where 1.0.1 showed the Stock Chart block as missing.
 
 = 1.0.1 =
 Fixes settings saving, 0.x migration, and provider data, and hardens the REST API. REST clients should review the `ttl`, cross-origin, and JSONP changes in the changelog.
