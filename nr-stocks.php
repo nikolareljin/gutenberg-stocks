@@ -5,7 +5,7 @@
  * Description:       Stock, forex, and crypto charts for the block editor. Multiple data providers, server-side caching, shortcode, and a headless-ready REST API.
  * Author:            Nik Reljin
  * Author URI:        https://profiles.wordpress.org/nreljin/
- * Version:           1.0.1
+ * Version:           1.0.2
  * Requires at least: 6.3
  * Requires PHP:      7.4
  * License:           GPLv2 or later
@@ -24,7 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 if ( ! defined( 'NR_STOCKS_VERSION' ) ) {
-	define( 'NR_STOCKS_VERSION', '1.0.1' );
+	define( 'NR_STOCKS_VERSION', '1.0.2' );
 }
 if ( ! defined( 'NR_STOCKS_FILE' ) ) {
 	define( 'NR_STOCKS_FILE', __FILE__ );

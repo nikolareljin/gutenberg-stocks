@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-11-07
+
 ### Fixed
 
 - On WordPress 6.3 to 6.5 the Stock Chart block loads in the editor again. The editor script needs `react-jsx-runtime`, which WordPress only ships from 6.6, so the plugin now registers a small fallback for it.
