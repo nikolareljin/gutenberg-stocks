@@ -38,6 +38,12 @@ class Rest_Provider {
 		'ALL',
 		'AMD',
 		'ANG',
+		'XCG',
+		'VED',
+		'XAU',
+		'XAG',
+		'XPT',
+		'XPD',
 		'AOA',
 		'ARS',
 		'AUD',
@@ -227,13 +233,6 @@ class Rest_Provider {
 		}
 		$asset = self::detect_asset( $symbol );
 		$op    = self::find_series_op( $config, $series, $asset );
-		if ( null === $op && 'crypto' === $asset ) {
-			// A pair outside the fiat list may still be served by a forex provider.
-			$op = self::find_series_op( $config, $series, 'forex' );
-			if ( null !== $op ) {
-				$asset = 'forex';
-			}
-		}
 		if ( null === $op ) {
 			return self::error( 'unsupported_series' );
 		}

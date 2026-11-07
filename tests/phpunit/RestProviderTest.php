@@ -292,17 +292,16 @@ class NR_Stocks_Rest_Provider_Test extends WP_UnitTestCase {
 		$this->assertGreaterThan( 1, count( $long['data'] ) );
 	}
 
-	public function test_pairs_outside_the_fiat_list_reach_forex_providers() {
+	public function test_iso_pairs_reach_forex_providers_and_coins_do_not() {
 		$this->mock_http( self::fixture( 'frankfurter.json' ) );
-		$listed = Rest_Provider::series( 'frankfurter', 'EUR/RON', 'daily', 30 );
-		$this->assertTrue( $listed['ok'] );
-		$this->assertSame( 'forex', $listed['meta']['asset'] );
+		$forex = Rest_Provider::series( 'frankfurter', 'EUR/RON', 'daily', 30 );
+		$this->assertTrue( $forex['ok'] );
+		$this->assertSame( 'forex', $forex['meta']['asset'] );
 
-		$this->mock_http( self::fixture( 'frankfurter.json' ) );
-		$unlisted = Rest_Provider::series( 'frankfurter', 'EUR/XAF', 'daily', 30 );
-		$this->assertTrue( $unlisted['ok'] );
-		$this->assertSame( 'forex', $unlisted['meta']['asset'] );
-		$this->assertStringContainsString( 'quotes=XAF', end( $this->mock_calls ) );
+		$calls = count( $this->mock_calls );
+		$coin  = Rest_Provider::series( 'frankfurter', 'BTC/USD', 'daily', 30 );
+		$this->assertSame( 'unsupported_series', $coin['error'] );
+		$this->assertCount( $calls, $this->mock_calls );
 	}
 
 	public function test_any_iso_currency_pair_uses_the_forex_endpoint() {

@@ -52,6 +52,7 @@ export default function Edit( { attributes, setAttributes } ) {
 	const blockProps = useBlockProps( { className: 'nr-stocks-editor' } );
 
 	const [ providers, setProviders ] = useState( [] );
+	const [ defaultProvider, setDefaultProvider ] = useState( '' );
 	const [ query, setQuery ] = useState( '' );
 	const [ suggestions, setSuggestions ] = useState( [] );
 	const [ preview, setPreview ] = useState( null );
@@ -66,6 +67,7 @@ export default function Edit( { attributes, setAttributes } ) {
 			.then( ( res ) => {
 				if ( ! cancelled && res && Array.isArray( res.data ) ) {
 					setProviders( res.data );
+					setDefaultProvider( res.meta?.default || '' );
 				}
 			} )
 			.catch( () => {} );
@@ -149,9 +151,11 @@ export default function Edit( { attributes, setAttributes } ) {
 		setAttributes( { symbols: symbols.filter( ( s ) => s !== target ) } );
 	};
 
-	const activeProvider = providers.find( ( p ) => p.id === provider );
+	const activeProvider = providers.find(
+		( p ) => p.id === ( provider || defaultProvider )
+	);
 	const seriesOptions = getSeriesOptions().filter( ( option ) => {
-		if ( ! provider || ! activeProvider ) {
+		if ( ! activeProvider ) {
 			return true;
 		}
 		return Object.prototype.hasOwnProperty.call(
@@ -208,7 +212,7 @@ export default function Edit( { attributes, setAttributes } ) {
 						] }
 						onChange={ ( value ) => {
 							const next = providers.find(
-								( p ) => p.id === value
+								( p ) => p.id === ( value || defaultProvider )
 							);
 							const keepsSeries =
 								! next ||

@@ -222,6 +222,13 @@ describe( 'renderQuotesHTML', () => {
 		expect( html ).not.toContain( '%' );
 	} );
 
+	it( 'keeps digits on very small prices', () => {
+		const html = renderQuotesHTML( [
+			{ symbol: 'A', quote: { price: 0.0000123 } },
+		] );
+		expect( html ).toContain( '0.0000123' );
+	} );
+
 	it( 'shows the date of the price', () => {
 		const html = renderQuotesHTML( [
 			{
@@ -241,6 +248,35 @@ describe( 'renderQuotesHTML', () => {
 		] );
 		expect( html ).toContain( '&lt;img' );
 		expect( html ).not.toContain( '<img' );
+	} );
+} );
+
+describe( 'buildChartModel y axis', () => {
+	it( 'gives neighboring ticks distinct labels on a narrow range', () => {
+		const { yTicks } = buildChartModel( [
+			{
+				symbol: 'EUR/USD',
+				rows: [
+					{ date: '2026-10-01', close: 1.1124 },
+					{ date: '2026-10-02', close: 1.1163 },
+				],
+			},
+		] );
+		const labels = yTicks.map( ( tick ) => tick.label );
+		expect( new Set( labels ).size ).toBe( labels.length );
+	} );
+
+	it( 'keeps large prices short', () => {
+		const { yTicks } = buildChartModel( [
+			{
+				symbol: 'BTC/USD',
+				rows: [
+					{ date: '2026-10-01', close: 60000 },
+					{ date: '2026-10-02', close: 80000 },
+				],
+			},
+		] );
+		expect( yTicks[ 0 ].label ).toMatch( /^\d+,\d{3}(\.\d{1,2})?$/ );
 	} );
 } );
 

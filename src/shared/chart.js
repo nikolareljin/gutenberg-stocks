@@ -102,6 +102,20 @@ export function toPercentChange( rows ) {
 }
 
 /**
+ * Formats an axis value with enough digits to tell neighboring ticks apart.
+ *
+ * @param {number} value Tick value.
+ * @param {number} span  Distance between the axis limits.
+ * @return {string} Label.
+ */
+const formatAxisNumber = ( value, span ) => {
+	const digits = Math.max( 2, Math.ceil( 2 - Math.log10( span || 1 ) ) );
+	return value.toLocaleString( 'en-US', {
+		maximumFractionDigits: Math.min( digits, 10 ),
+	} );
+};
+
+/**
  * Builds scales, paths, and ticks for one or more series.
  *
  * @param {Array}  seriesList List of { symbol, rows }.
@@ -197,7 +211,7 @@ export function buildChartModel( seriesList, opts = {} ) {
 			y: yScale( value ),
 			label: normalized
 				? `${ value >= 0 ? '+' : '' }${ value.toFixed( 2 ) }%`
-				: value.toLocaleString( 'en-US', { maximumFractionDigits: 2 } ),
+				: formatAxisNumber( value, max - min ),
 		};
 	} );
 
@@ -287,8 +301,15 @@ export function renderLegendHTML( seriesList, opts = {} ) {
 	return `<ul class="nr-stocks-legend">${ items }</ul>`;
 }
 
-const formatQuoteNumber = ( value ) =>
-	Number( value ).toLocaleString( 'en-US', { maximumFractionDigits: 4 } );
+const formatQuoteNumber = ( value ) => {
+	const number = Number( value );
+	return number.toLocaleString(
+		'en-US',
+		Math.abs( number ) < 1 && number !== 0
+			? { maximumSignificantDigits: 4 }
+			: { maximumFractionDigits: 4 }
+	);
+};
 
 /**
  * Renders the quote panel from baked per-symbol quotes.
