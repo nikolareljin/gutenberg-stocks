@@ -4,8 +4,8 @@ Stock, forex, and crypto charts for the block editor — multiple swappable
 data providers, server-side caching, a shortcode, and a headless-ready
 REST API. Built for submission to WordPress.org.
 
-`nr-stocks` is the plugin slug; this repository keeps its historical name,
-`gutenberg-stocks`.
+`nr-stocks` is the plugin slug and the repository name. Until November 2026
+the repository was called `gutenberg-stocks`; see [History](#history).
 
 ## Features
 
@@ -38,7 +38,7 @@ Settings → NR Stocks: default provider, API keys, and cache times:
 
 ![The NR Stocks settings screen](.wordpress-org/screenshot-3.png)
 
-More on the project site: <https://nikolareljin.github.io/gutenberg-stocks/>.
+More on the project site: <https://nikolareljin.github.io/nr-stocks/>.
 
 ## Requirements
 
@@ -50,8 +50,8 @@ More on the project site: <https://nikolareljin.github.io/gutenberg-stocks/>.
 ## Install (development)
 
 ```bash
-git clone git@github.com:nikolareljin/gutenberg-stocks.git
-cd gutenberg-stocks
+git clone git@github.com:nikolareljin/nr-stocks.git
+cd nr-stocks
 ./update            # git submodules (script-helpers)
 npm install
 composer install
@@ -110,10 +110,32 @@ test stack (`NRSTX_TEST_PORT`, `NRSTX_WP_VERSION`).
 Docs: `docs/adding-a-provider.md`, `docs/rest-api.md`, `docs/caching.md`.
 WP.org page assets live in `.wordpress-org/` (never in the ZIP).
 
+## History
+
+- **March 2019:** repository created as `gutenberg-stocks`. Release 0.0.1
+  (April 2019) was a "Stock Information" block for the then-new Gutenberg
+  block editor, built with create-guten-block: one symbol, an Alpha Vantage
+  daily chart.
+- **2026, 0.1.0 and 0.1.1:** dependency and security updates to that block.
+- **November 5, 2026, 1.0.0:** complete rebuild as NR Stocks for the
+  WordPress.org plugin directory, with the plugin slug `nr-stocks`. The 0.x
+  block was retired; charts saved with it keep rendering and its settings
+  migrate.
+- **November 6-7, 2026, 1.0.1 to 1.0.3:** fixes, and the license file aligned
+  to GPLv2 or later.
+- **November 7, 2026:** repository renamed from `gutenberg-stocks` to
+  `nr-stocks`, so the repository, plugin slug, text domain and ZIP folder share
+  one name. GitHub redirects the old repository URLs (web, issues, pull
+  requests and git remotes). The project site moved from
+  `nikolareljin.github.io/gutenberg-stocks/` to
+  <https://nikolareljin.github.io/nr-stocks/>; the old site address is not
+  redirected. To point an existing clone at the new name:
+  `git remote set-url origin git@github.com:nikolareljin/nr-stocks.git`.
+
 ## License
 
 GPLv2 or later; see `LICENSE`. Copyright (C) 2019-2026 Nik Reljin.
 
 Copies and modified versions must keep the copyright notice. If you use or
 build on this code, please credit the project and link to this repository:
-<https://github.com/nikolareljin/gutenberg-stocks>.
+<https://github.com/nikolareljin/nr-stocks>.
