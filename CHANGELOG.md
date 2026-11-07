@@ -12,7 +12,9 @@ All notable changes to this project are documented in this file.
 - The quote panel and a comparison legend now appear on the frontend.
 - CoinGecko daily charts show one point per day instead of the last hours, and Frankfurter weekly and monthly charts return the requested number of points.
 - Alpha Vantage crypto charts send the coin as the symbol, Frankfurter symbol search works with its current API and offers chartable pairs, and forex pairs outside the built-in list reach forex providers.
-- The quote panel shows the date of each price.
+- The quote panel shows the date of each price when the provider gives one.
+- Every ISO 4217 currency pair is treated as forex, CoinGecko charts work for coins outside the built-in list, and symbol search reports upstream limits instead of a parse error.
+- Switching a block to a provider without its current series falls back to daily.
 - Alpha Vantage JSON notes on CSV calls report `upstream_limit` or `upstream_error` instead of an empty cached result.
 - Saving settings before the option exists no longer corrupts the cross-origin host list.
 - A block or shortcode with no symbols renders nothing instead of an error notice and a PHP warning.

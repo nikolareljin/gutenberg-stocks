@@ -206,9 +206,21 @@ export default function Edit( { attributes, setAttributes } ) {
 								value: p.id,
 							} ) ),
 						] }
-						onChange={ ( value ) =>
-							setAttributes( { provider: value } )
-						}
+						onChange={ ( value ) => {
+							const next = providers.find(
+								( p ) => p.id === value
+							);
+							const keepsSeries =
+								! next ||
+								Object.prototype.hasOwnProperty.call(
+									next.series || {},
+									series
+								);
+							setAttributes( {
+								provider: value,
+								series: keepsSeries ? series : 'daily',
+							} );
+						} }
 						help={ __(
 							'Keys are configured under Settings → NR Stocks.',
 							'nr-stocks'

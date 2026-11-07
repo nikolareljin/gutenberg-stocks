@@ -151,10 +151,11 @@ class Configs {
 				'error_paths' => array( 'Note', 'Information', 'Error Message' ),
 			),
 			'search'      => array(
-				'url'    => '{host}/query?function=SYMBOL_SEARCH&keywords={q}&apikey={key}',
-				'format' => 'json',
-				'rows'   => 'bestMatches',
-				'map'    => array(
+				'url'         => '{host}/query?function=SYMBOL_SEARCH&keywords={q}&apikey={key}',
+				'format'      => 'json',
+				'rows'        => 'bestMatches',
+				'error_paths' => array( 'Note', 'Information', 'Error Message' ),
+				'map'         => array(
 					'symbol'   => '1. symbol',
 					'name'     => '2. name',
 					'type'     => '3. type',
@@ -228,10 +229,11 @@ class Configs {
 				'error_paths' => array( 'message' ),
 			),
 			'search'      => array(
-				'url'    => '{host}/symbol_search?symbol={q}&apikey={key}',
-				'format' => 'json',
-				'rows'   => 'data',
-				'map'    => array(
+				'url'         => '{host}/symbol_search?symbol={q}&apikey={key}',
+				'format'      => 'json',
+				'rows'        => 'data',
+				'error_paths' => array( 'message' ),
+				'map'         => array(
 					'symbol'   => 'symbol',
 					'name'     => 'instrument_name',
 					'exchange' => 'exchange',

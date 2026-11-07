@@ -305,6 +305,41 @@ class NR_Stocks_Rest_Provider_Test extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'quotes=XAF', end( $this->mock_calls ) );
 	}
 
+	public function test_any_iso_currency_pair_uses_the_forex_endpoint() {
+		$this->mock_http( self::fixture( 'av_daily.csv' ) );
+		$result = Rest_Provider::series( 'alphavantage', 'EUR/RSD', 'daily', 30 );
+		$this->assertSame( 'forex', $result['meta']['asset'] );
+		$this->assertStringContainsString( 'function=FX_DAILY', $this->mock_calls[0] );
+	}
+
+	public function test_coingecko_unmapped_coin_uses_the_base_as_id() {
+		$this->mock_http( self::fixture( 'cg_history.json' ) );
+		Rest_Provider::series( 'coingecko', 'PEPE/USD', 'daily', 30 );
+		$this->assertStringContainsString( '/coins/pepe/market_chart', $this->mock_calls[0] );
+
+		$this->mock_http( self::fixture( 'cg_history.json' ) );
+		Rest_Provider::series( 'coingecko', '../USD', 'daily', 30 );
+		$this->assertStringNotContainsString( '..', end( $this->mock_calls ) );
+	}
+
+	public function test_search_reports_upstream_limits() {
+		$this->mock_http( self::fixture( 'av_note_multiline.json' ) );
+		$result = Rest_Provider::search( 'alphavantage', 'ibm' );
+		$this->assertFalse( $result['ok'] );
+		$this->assertSame( 'upstream_limit', $result['error'] );
+	}
+
+	public function test_nearby_ranges_share_one_fetch_when_the_url_takes_a_range() {
+		$this->mock_http( self::fixture( 'td_series.json' ) );
+		$short = Rest_Provider::series( 'twelvedata', 'AAPL', 'daily', 2 );
+		$long  = Rest_Provider::series( 'twelvedata', 'AAPL', 'daily', 20 );
+		$this->assertCount( 1, $this->mock_calls );
+		$this->assertStringContainsString( 'outputsize=30', $this->mock_calls[0] );
+		$this->assertCount( 2, $short['data'] );
+		$this->assertCount( 3, $long['data'] );
+		$this->assertTrue( $long['cached'] );
+	}
+
 	public function test_coingecko_daily_series_has_one_row_per_day() {
 		$start  = 1793721600000;
 		$prices = array();
