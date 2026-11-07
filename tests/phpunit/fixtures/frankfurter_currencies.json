@@ -11,14 +11,14 @@
   "iso_numeric": "840",
   "name": "United States Dollar",
   "symbol": "$",
-  "type": "fiat"
+  "type": "currency"
  },
  {
   "iso_code": "EUR",
   "iso_numeric": "978",
   "name": "Euro",
   "symbol": "E",
-  "type": "fiat"
+  "type": "currency"
  },
  {
   "iso_code": "USDC",
@@ -26,5 +26,19 @@
   "name": "USD Coin",
   "symbol": "USDC",
   "type": "crypto"
+ },
+ {
+  "iso_code": "CNH",
+  "iso_numeric": null,
+  "name": "Chinese Renminbi Offshore",
+  "symbol": "CNH",
+  "type": "currency"
+ },
+ {
+  "iso_code": "XAU",
+  "iso_numeric": "959",
+  "name": "Gold",
+  "symbol": "XAU",
+  "type": "metal"
  }
 ]

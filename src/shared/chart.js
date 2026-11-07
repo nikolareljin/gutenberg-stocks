@@ -109,9 +109,14 @@ export function toPercentChange( rows ) {
  * @return {string} Label.
  */
 const formatAxisNumber = ( value, span ) => {
+	// Long decimals would overflow the axis margin, so tiny values use exponents.
+	if ( value !== 0 && Math.abs( value ) < 0.001 ) {
+		const needed = Math.ceil( Math.log10( Math.abs( value ) / span ) ) + 1;
+		return value.toExponential( Math.min( Math.max( needed, 1 ), 3 ) );
+	}
 	const digits = Math.max( 2, Math.ceil( 2 - Math.log10( span || 1 ) ) );
 	return value.toLocaleString( 'en-US', {
-		maximumFractionDigits: Math.min( digits, 10 ),
+		maximumFractionDigits: Math.min( digits, 6 ),
 	} );
 };
 

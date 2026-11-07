@@ -11,7 +11,7 @@ All notable changes to this project are documented in this file.
 - Saved 0.x charts load the view script and use the site's real REST URL, including plain permalinks and subdirectory installs.
 - The quote panel and a comparison legend now appear on the frontend.
 - CoinGecko daily charts show one point per day instead of the last hours, and Frankfurter weekly and monthly charts return the requested number of points.
-- Alpha Vantage crypto charts send the coin as the symbol, Frankfurter symbol search works with its current API and offers chartable pairs, and every ISO currency pair reaches forex providers.
+- Alpha Vantage crypto charts send the coin as the symbol, Frankfurter symbol search works with its current API and offers chartable pairs, and every currency pair that search offers can be charted.
 - The quote panel shows the date of each price when the provider gives one.
 - CoinGecko charts work for coins outside the built-in list, and symbol search reports upstream limits instead of a parse error.
 - Chart axes and quote prices keep enough digits to be readable on narrow ranges and very small prices.

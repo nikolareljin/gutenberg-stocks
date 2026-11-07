@@ -292,6 +292,23 @@ class NR_Stocks_Rest_Provider_Test extends WP_UnitTestCase {
 		$this->assertGreaterThan( 1, count( $long['data'] ) );
 	}
 
+	public function test_every_pair_offered_by_search_can_be_charted() {
+		foreach ( array(
+			'renminbi' => 'CNH/USD',
+			'gold'     => 'XAU/USD',
+			'euro'     => 'EUR/USD',
+		) as $query => $pair ) {
+			$this->mock_http( self::fixture( 'frankfurter_currencies.json' ) );
+			$found = Rest_Provider::search( 'frankfurter', $query );
+			$this->assertSame( $pair, $found['data'][0]['symbol'] );
+
+			$this->mock_http( self::fixture( 'frankfurter.json' ) );
+			$chart = Rest_Provider::series( 'frankfurter', $pair, 'daily', 30 );
+			$this->assertTrue( $chart['ok'], $pair );
+			$this->assertSame( 'forex', $chart['meta']['asset'] );
+		}
+	}
+
 	public function test_iso_pairs_reach_forex_providers_and_coins_do_not() {
 		$this->mock_http( self::fixture( 'frankfurter.json' ) );
 		$forex = Rest_Provider::series( 'frankfurter', 'EUR/RON', 'daily', 30 );

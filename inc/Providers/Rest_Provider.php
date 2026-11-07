@@ -28,7 +28,8 @@ class Rest_Provider {
 	const INTRADAY_INTERVALS = array( '1min', '5min', '15min', '30min', '60min' );
 
 	/**
-	 * ISO 4217 codes treated as fiat for forex-vs-crypto detection.
+	 * Currency and metal codes treated as forex, not coins: ISO 4217 plus the
+	 * other codes Frankfurter's /v2/currencies lists as a currency or metal.
 	 *
 	 * @var string[]
 	 */
@@ -39,6 +40,12 @@ class Rest_Provider {
 		'AMD',
 		'ANG',
 		'XCG',
+		'CMD',
+		'CNH',
+		'GGP',
+		'IMP',
+		'JEP',
+		'XDR',
 		'VED',
 		'XAU',
 		'XAG',

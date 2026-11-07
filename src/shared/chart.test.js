@@ -266,6 +266,27 @@ describe( 'buildChartModel y axis', () => {
 		expect( new Set( labels ).size ).toBe( labels.length );
 	} );
 
+	it.each( [
+		[ 0.0000123, 0.0000142 ],
+		[ 0.00000121, 0.00000126 ],
+		[ 1.21e-9, 1.26e-9 ],
+	] )( 'keeps tiny prices short and distinct: %d', ( low, high ) => {
+		const { yTicks } = buildChartModel( [
+			{
+				symbol: 'SHIB/USD',
+				rows: [
+					{ date: '2026-10-01', close: low },
+					{ date: '2026-10-02', close: high },
+				],
+			},
+		] );
+		const labels = yTicks.map( ( tick ) => tick.label );
+		expect( new Set( labels ).size ).toBe( labels.length );
+		labels.forEach( ( label ) =>
+			expect( label.length ).toBeLessThanOrEqual( 9 )
+		);
+	} );
+
 	it( 'keeps large prices short', () => {
 		const { yTicks } = buildChartModel( [
 			{
