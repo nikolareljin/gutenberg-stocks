@@ -60,6 +60,7 @@ Posts using the 0.x `dj/stock-information` block keep their saved charts on the 
 
 = 1.0.3 =
 * The LICENSE file now matches the plugin license: GPLv2 or later.
+* The project moved to https://github.com/nikolareljin/nr-stocks (formerly gutenberg-stocks).
 
 = 1.0.2 =
 * Fixed: on WordPress 6.3 to 6.5 the Stock Chart block loads in the editor again.
