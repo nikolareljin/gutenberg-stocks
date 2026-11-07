@@ -109,3 +109,11 @@ test stack (`NRSTX_TEST_PORT`, `NRSTX_WP_VERSION`).
 
 Docs: `docs/adding-a-provider.md`, `docs/rest-api.md`, `docs/caching.md`.
 WP.org page assets live in `.wordpress-org/` (never in the ZIP).
+
+## License
+
+GPLv2 or later; see `LICENSE`. Copyright (C) 2019-2026 Nik Reljin.
+
+Copies and modified versions must keep the copyright notice. If you use or
+build on this code, please credit the project and link to this repository:
+<https://github.com/nikolareljin/gutenberg-stocks>.
