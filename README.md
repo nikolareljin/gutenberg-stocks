@@ -23,6 +23,23 @@ REST API. Built for submission to WordPress.org.
   `/providers`) with cache headers + rate limits (`docs/rest-api.md`).
 - API keys stay on the server — browsers only talk to your own site.
 
+## Screenshots
+
+The Stock Chart block in the editor, with symbol search, a live preview, and
+block settings:
+
+![The Stock Chart block in the WordPress editor](.wordpress-org/screenshot-1.png)
+
+On the site, two symbols compared, with a legend and the latest quotes:
+
+![EUR/USD and GBP/USD compared on one chart, with a quote panel](.wordpress-org/screenshot-2.png)
+
+Settings → NR Stocks: default provider, API keys, and cache times:
+
+![The NR Stocks settings screen](.wordpress-org/screenshot-3.png)
+
+More on the project site: <https://nikolareljin.github.io/gutenberg-stocks/>.
+
 ## Requirements
 
 - WordPress 6.3+ (tested to 7.1), PHP 7.4+.

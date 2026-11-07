@@ -806,10 +806,15 @@ class Rest_Provider {
 			}
 			$row = $sub;
 		}
-		$rows = self::apply_map( array( $row ), $map, $params, $transforms );
+		$rows  = self::apply_map( array( $row ), $map, $params, $transforms );
+		$quote = self::normalize_quote( $rows[0] );
+		if ( null === $quote['price'] ) {
+			// A valid answer without a price, such as an unknown quote currency.
+			return self::error( 'upstream_error' );
+		}
 		return array(
 			'ok'   => true,
-			'data' => self::normalize_quote( $rows[0] ),
+			'data' => $quote,
 		);
 	}
 

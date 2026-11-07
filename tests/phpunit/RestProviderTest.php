@@ -458,6 +458,12 @@ class NR_Stocks_Rest_Provider_Test extends WP_UnitTestCase {
 		$this->assertSame( 'upstream_error', $result['error'] );
 	}
 
+	public function test_quote_without_a_price_is_a_rejection() {
+		$this->mock_http( '{"bitcoin":{}}' );
+		$result = Rest_Provider::quote( 'coingecko', 'BTC/XYZ' );
+		$this->assertSame( 'upstream_error', $result['error'] );
+	}
+
 	public function test_server_errors_stay_temporary() {
 		$this->mock_http( '', 500 );
 		$result = Rest_Provider::series( 'coingecko', 'NOPE/USD', 'daily', 30 );
