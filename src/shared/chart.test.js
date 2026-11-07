@@ -287,17 +287,27 @@ describe( 'buildChartModel y axis', () => {
 		);
 	} );
 
-	it( 'keeps large prices short', () => {
+	it.each( [
+		[ 60000, 80000 ],
+		[ 100000, 140000 ],
+		[ 620000, 740000 ],
+		[ 13000000, 15000000 ],
+		[ 2000000000, 3000000000 ],
+	] )( 'keeps large prices short and distinct: %d', ( low, high ) => {
 		const { yTicks } = buildChartModel( [
 			{
 				symbol: 'BTC/USD',
 				rows: [
-					{ date: '2026-10-01', close: 60000 },
-					{ date: '2026-10-02', close: 80000 },
+					{ date: '2026-10-01', close: low },
+					{ date: '2026-10-02', close: high },
 				],
 			},
 		] );
-		expect( yTicks[ 0 ].label ).toMatch( /^\d+,\d{3}(\.\d{1,2})?$/ );
+		const labels = yTicks.map( ( tick ) => tick.label );
+		expect( new Set( labels ).size ).toBe( labels.length );
+		labels.forEach( ( label ) =>
+			expect( label.length ).toBeLessThanOrEqual( 9 )
+		);
 	} );
 } );
 

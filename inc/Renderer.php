@@ -134,7 +134,7 @@ class Renderer {
 	public static function is_temporary_error( $code ) {
 		return ! in_array(
 			$code,
-			array( 'unsupported_series', 'unsupported_asset', 'unsupported_pair', 'bad_symbol', 'unknown_provider', 'missing_key', 'forbidden_host' ),
+			array( 'unsupported_series', 'unsupported_asset', 'unsupported_pair', 'bad_symbol', 'unknown_provider', 'missing_key', 'forbidden_host', 'upstream_error' ),
 			true
 		);
 	}

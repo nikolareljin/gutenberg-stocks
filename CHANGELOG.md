@@ -14,7 +14,9 @@ All notable changes to this project are documented in this file.
 - Alpha Vantage crypto charts send the coin as the symbol, Frankfurter symbol search works with its current API and offers chartable pairs, and every currency pair that search offers can be charted.
 - The quote panel shows the date of each price when the provider gives one.
 - CoinGecko charts work for coins outside the built-in list, and symbol search reports upstream limits instead of a parse error.
-- Chart axes and quote prices keep enough digits to be readable on narrow ranges and very small prices.
+- Chart axes and quote prices stay readable on narrow ranges and on very small or very large prices.
+- A symbol the provider rejects no longer disables page caching, and is retried hourly instead of every minute.
+- API keys for providers added through the `nr_stocks_providers` filter are kept on save.
 - Switching a block to a provider without its current series falls back to daily.
 - Alpha Vantage JSON notes on CSV calls report `upstream_limit` or `upstream_error` instead of an empty cached result.
 - Saving settings before the option exists no longer corrupts the cross-origin host list.

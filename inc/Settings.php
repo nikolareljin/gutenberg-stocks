@@ -495,6 +495,12 @@ class Settings {
 		$saved_keys = is_array( $saved ) && isset( $saved['keys'] ) && is_array( $saved['keys'] ) ? $saved['keys'] : array();
 		$new_keys   = isset( $input['keys'] ) && is_array( $input['keys'] ) ? $input['keys'] : array();
 		$to_clear   = isset( $input['keys_clear'] ) && is_array( $input['keys_clear'] ) ? $input['keys_clear'] : array();
+		// Providers added through the nr_stocks_providers filter have keys too.
+		foreach ( Provider_Registry::all() as $config ) {
+			if ( ! empty( $config['key_setting'] ) && ! isset( $clean['keys'][ $config['key_setting'] ] ) ) {
+				$clean['keys'][ $config['key_setting'] ] = '';
+			}
+		}
 		foreach ( $clean['keys'] as $name => $unused ) {
 			$new_key = isset( $new_keys[ $name ] ) ? sanitize_text_field( $new_keys[ $name ] ) : '';
 			if ( '' !== $new_key ) {

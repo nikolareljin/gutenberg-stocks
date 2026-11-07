@@ -102,6 +102,26 @@ class NR_Stocks_Settings_Test extends WP_UnitTestCase {
 		$this->assertSame( '', $cleared['keys']['alphavantage'] );
 	}
 
+	public function test_custom_provider_key_survives_saving() {
+		$add_provider = function ( $providers ) {
+			$providers['myapi'] = array(
+				'id'          => 'myapi',
+				'label'       => 'My API',
+				'needs_key'   => true,
+				'key_setting' => 'myapi',
+			);
+			return $providers;
+		};
+		add_filter( 'nr_stocks_providers', $add_provider );
+		$settings = new Settings();
+		$clean    = $settings->sanitize( array( 'keys' => array( 'myapi' => 'MYKEY' ) ) );
+		update_option( NR_STOCKS_OPTION, $clean );
+		$key = Settings::get_key( 'myapi' );
+		remove_filter( 'nr_stocks_providers', $add_provider );
+
+		$this->assertSame( 'MYKEY', $key );
+	}
+
 	public function test_sanitize_is_stable_when_run_twice() {
 		$settings = new Settings();
 		$first    = $settings->sanitize( array( 'rest_cors_origins' => "app.example.com\nfoo.test" ) );

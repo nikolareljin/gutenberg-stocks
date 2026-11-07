@@ -417,6 +417,22 @@ class NR_Stocks_Rest_Provider_Test extends WP_UnitTestCase {
 		$this->assertTrue( $third['cached'] );
 	}
 
+	public function test_upstream_rejection_is_remembered_for_an_hour() {
+		$this->mock_http( '', 404 );
+		$result = Rest_Provider::series( 'coingecko', 'NOPE/USD', 'daily', 30 );
+		$this->assertSame( 'upstream_error', $result['error'] );
+
+		$key     = Nikolareljin\NrStocks\Cache::make_key( 'coingecko', 'series', array( 'NOPE/USD', 'daily', 30, '', 'crypto' ) );
+		$timeout = (int) get_option( '_transient_timeout_' . $key );
+		$this->assertGreaterThan( time() + 3000, $timeout );
+	}
+
+	public function test_server_errors_stay_temporary() {
+		$this->mock_http( '', 500 );
+		$result = Rest_Provider::series( 'coingecko', 'NOPE/USD', 'daily', 30 );
+		$this->assertSame( 'http_error', $result['error'] );
+	}
+
 	public function test_csv_with_dates_but_no_close_is_a_parse_error() {
 		$this->mock_http( "timestamp,open\n2026-10-30,1\n" );
 		$result = Rest_Provider::series( 'alphavantage', 'IBM', 'daily', 30 );

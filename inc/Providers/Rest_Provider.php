@@ -966,7 +966,11 @@ class Rest_Provider {
 		}
 		$code = (int) wp_remote_retrieve_response_code( $response );
 		if ( 200 !== $code ) {
-			return self::error( 429 === $code ? 'upstream_limit' : 'http_error' );
+			if ( 429 === $code ) {
+				return self::error( 'upstream_limit' );
+			}
+			// Upstream rejected this request, for example an unknown symbol.
+			return self::error( 400 === $code || 404 === $code ? 'upstream_error' : 'http_error' );
 		}
 		return array(
 			'ok'   => true,

@@ -100,6 +100,13 @@ class NR_Stocks_Shortcode_Test extends WP_UnitTestCase {
 		$this->assertSame( $before, did_action( 'nr_stocks_page_uncacheable' ) );
 	}
 
+	public function test_rejected_symbol_leaves_page_caching_alone() {
+		$before = did_action( 'nr_stocks_page_uncacheable' );
+		$this->mock_http( "{\n    \"Error Message\": \"Invalid API call.\"\n}" );
+		do_shortcode( '[nr-stocks symbols="NOPE" provider="alphavantage"]' );
+		$this->assertSame( $before, did_action( 'nr_stocks_page_uncacheable' ) );
+	}
+
 	public function test_success_leaves_page_caching_alone() {
 		$before = did_action( 'nr_stocks_page_uncacheable' );
 		$this->mock_http( self::fixture( 'av_daily.csv' ) );
@@ -109,10 +116,10 @@ class NR_Stocks_Shortcode_Test extends WP_UnitTestCase {
 
 	public function test_only_temporary_errors_are_kept_out_of_page_caches() {
 		$renderer = Nikolareljin\NrStocks\Renderer::class;
-		foreach ( array( 'busy', 'http_error', 'upstream_limit', 'upstream_budget', 'upstream_error', 'parse_error', 'fetch_failed' ) as $code ) {
+		foreach ( array( 'busy', 'http_error', 'upstream_limit', 'upstream_budget', 'parse_error', 'fetch_failed' ) as $code ) {
 			$this->assertTrue( $renderer::is_temporary_error( $code ), $code );
 		}
-		foreach ( array( 'unsupported_series', 'unsupported_pair', 'bad_symbol', 'unknown_provider', 'missing_key', 'forbidden_host' ) as $code ) {
+		foreach ( array( 'unsupported_series', 'unsupported_pair', 'bad_symbol', 'unknown_provider', 'missing_key', 'forbidden_host', 'upstream_error' ) as $code ) {
 			$this->assertFalse( $renderer::is_temporary_error( $code ), $code );
 		}
 	}

@@ -114,6 +114,16 @@ const formatAxisNumber = ( value, span ) => {
 		const needed = Math.ceil( Math.log10( Math.abs( value ) / span ) ) + 1;
 		return value.toExponential( Math.min( Math.max( needed, 1 ), 3 ) );
 	}
+	// The margin fits about nine characters, so large values drop their decimals.
+	if ( Math.abs( value ) >= 1000000 ) {
+		return value.toLocaleString( 'en-US', {
+			notation: 'compact',
+			maximumFractionDigits: 2,
+		} );
+	}
+	if ( Math.abs( value ) >= 10000 ) {
+		return value.toLocaleString( 'en-US', { maximumFractionDigits: 0 } );
+	}
 	const digits = Math.max( 2, Math.ceil( 2 - Math.log10( span || 1 ) ) );
 	return value.toLocaleString( 'en-US', {
 		maximumFractionDigits: Math.min( digits, 6 ),

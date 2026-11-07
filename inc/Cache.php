@@ -55,6 +55,14 @@ class Cache {
 	const NEGATIVE_TTL = 60;
 
 	/**
+	 * How long a request upstream rejected is remembered, in seconds, so a bad
+	 * or delisted symbol on a page does not spend quota on every retry.
+	 *
+	 * @var int
+	 */
+	const REJECTED_TTL = 3600;
+
+	/**
 	 * How long an entry outlives its TTL, in seconds, for use when a refresh
 	 * cannot run or fails. Fresh reads still honor the TTL.
 	 *
@@ -304,7 +312,7 @@ class Cache {
 					),
 					'fetched_at' => time(),
 				),
-				self::NEGATIVE_TTL
+				'upstream_error' === $error ? self::REJECTED_TTL : self::NEGATIVE_TTL
 			);
 			self::index_add( $key );
 			self::release_lock( $key );
