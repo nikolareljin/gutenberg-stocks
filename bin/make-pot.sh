@@ -26,9 +26,11 @@ docker run --rm \
   --exclude=".git,.github,.build,build,dist,vendor,test,tests,node_modules,bin,scripts,docs" \
   --headers='{"Report-Msgid-Bugs-To":"https://github.com/nikolareljin/gutenberg-stocks/issues"}'
 
-# Email-shaped gettext placeholders trip secret scanners; the plugin version,
-# timestamp, and generator version would change the file with no new strings.
-sed -e 's/^"Project-Id-Version: .*"$/"Project-Id-Version: NR Stocks\\n"/' \
+# Email-shaped gettext placeholders trip secret scanners; the copyright year,
+# plugin version, timestamp, and generator version would change the file with no
+# new strings.
+sed -e 's/^# Copyright (C) [0-9]* /# Copyright (C) /' \
+  -e 's/^"Project-Id-Version: .*"$/"Project-Id-Version: NR Stocks\\n"/' \
   -e 's/^"Last-Translator: .*"$/"Last-Translator: FULL NAME\\n"/' \
   -e 's/^"Language-Team: .*"$/"Language-Team: LANGUAGE\\n"/' \
   -e '/^"POT-Creation-Date: /d' \

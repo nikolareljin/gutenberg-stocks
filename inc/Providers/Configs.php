@@ -334,9 +334,11 @@ class Configs {
 						'url'    => '{host}/api/v3/coins/{cg_id}/market_chart?vs_currency={cur}&days={range}',
 						'format' => 'json',
 						'pairs'  => array(
-							'path'  => 'prices',
-							'ts'    => 'ms',
-							'value' => 'close',
+							'path'    => 'prices',
+							'ts'      => 'ms',
+							'value'   => 'close',
+							// Up to 90 days the API answers with hourly rows.
+							'per_day' => true,
 						),
 						'order'  => 'asc',
 					),

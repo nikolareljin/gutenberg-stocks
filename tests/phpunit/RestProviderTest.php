@@ -274,6 +274,41 @@ class NR_Stocks_Rest_Provider_Test extends WP_UnitTestCase {
 		$this->assertSame( 'parse_error', $result['error'] );
 	}
 
+	public function test_coingecko_daily_series_has_one_row_per_day() {
+		$start  = 1793721600000;
+		$prices = array();
+		for ( $hour = 0; $hour < 24 * 40; $hour++ ) {
+			$prices[] = array( $start + $hour * 3600000, 100 + $hour );
+		}
+		$this->mock_http( wp_json_encode( array( 'prices' => $prices ) ) );
+		$result = Rest_Provider::series( 'coingecko', 'BTC/USD', 'daily', 30 );
+		$this->assertCount( 30, $result['data'] );
+		$first = strtotime( $result['data'][0]['date'] );
+		$last  = strtotime( $result['data'][29]['date'] );
+		$this->assertGreaterThan( 28 * DAY_IN_SECONDS, $last - $first );
+		$this->assertSame( (float) ( 100 + 24 * 40 - 1 ), (float) $result['data'][29]['close'] );
+	}
+
+	/**
+	 * Days between the from and to dates of a Frankfurter request.
+	 *
+	 * @param string $series Series id.
+	 * @return int
+	 */
+	protected function frankfurter_window_days( $series ) {
+		$this->mock_http( self::fixture( 'frankfurter.json' ) );
+		Rest_Provider::series( 'frankfurter', 'EUR/USD', $series, 30 );
+		$url = end( $this->mock_calls );
+		wp_parse_str( (string) wp_parse_url( $url, PHP_URL_QUERY ), $query );
+		return (int) ( ( strtotime( $query['to'] ) - strtotime( $query['from'] ) ) / DAY_IN_SECONDS );
+	}
+
+	public function test_frankfurter_window_covers_the_requested_points_per_series() {
+		$this->assertGreaterThanOrEqual( 30, $this->frankfurter_window_days( 'daily' ) );
+		$this->assertGreaterThanOrEqual( 30 * 7, $this->frankfurter_window_days( 'weekly' ) );
+		$this->assertGreaterThanOrEqual( 30 * 31, $this->frankfurter_window_days( 'monthly' ) );
+	}
+
 	public function test_unknown_intraday_intervals_share_the_default_entry() {
 		$this->mock_http( self::fixture( 'av_daily.csv' ) );
 		Rest_Provider::series( 'alphavantage', 'IBM', 'intraday', 30, 'aaa' );

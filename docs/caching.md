@@ -27,10 +27,11 @@ endpoint (not recommended in production).
   progress (`nr_stocks_lock_wait_ms` filter), then report `busy`.
 - Ranges share entries: upstream requests use 30, 90, 180, or 365 points and
   each response is sliced to the requested `range`. Each caller still applies
-  its own TTL, so a long per-block TTL does not freeze other charts. An entry
-  past a caller's TTL but not yet expired is served when a refresh fails, is
-  over budget, or is still in progress, and a short-TTL refresh never shortens
-  the entry's lifetime. After a failed refresh, upstream is left alone for 60s.
+  its own TTL, so a long per-block TTL does not freeze other charts.
+- Entries outlive their TTL by one hour. A fresh read still honors the TTL, but
+  an older entry is served when a refresh fails, is over budget, or is already
+  in progress. After a failed refresh, upstream is left alone for 60s. A
+  short-TTL refresh never shortens an entry's lifetime.
 - A page holding a temporary failure tells page caches not to store it.
 - Errors cached 60s (negative cache), so a dead upstream degrades instead
   of melting quotas.

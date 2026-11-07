@@ -116,7 +116,7 @@ class Rest_Provider {
 		$fetch_range = self::fetch_range( $range );
 		$interval    = self::canonical_interval( $series, $interval );
 
-		$params = self::build_params( $config, $provider_id, $symbol, $asset, $fetch_range, $interval, $key );
+		$params = self::build_params( $config, $provider_id, $symbol, $asset, $fetch_range, $interval, $key, $series );
 		if ( isset( $op['base_currency'] ) && $params['from'] !== $op['base_currency'] ) {
 			return self::error( 'unsupported_pair' );
 		}
@@ -405,9 +405,10 @@ class Rest_Provider {
 	 * @param int    $range       Point count.
 	 * @param string $interval    Intraday interval.
 	 * @param string $key         API key (may be empty).
+	 * @param string $series      Series id, which sets the date window per point.
 	 * @return array
 	 */
-	protected static function build_params( $config, $provider_id, $symbol, $asset, $range, $interval, $key ) {
+	protected static function build_params( $config, $provider_id, $symbol, $asset, $range, $interval, $key, $series = 'daily' ) {
 		$from = '';
 		$to   = '';
 		if ( false !== strpos( $symbol, '/' ) ) {
@@ -421,6 +422,13 @@ class Rest_Provider {
 		$range = max( 1, min( 365, (int) $range ) );
 		$now   = time();
 
+		$days_per_point = 3;
+		if ( 'weekly' === $series ) {
+			$days_per_point = 8;
+		} elseif ( 'monthly' === $series ) {
+			$days_per_point = 32;
+		}
+
 		$params = array(
 			'symbol'    => $symbol,
 			'from'      => $from,
@@ -432,7 +440,7 @@ class Rest_Provider {
 			'cur'       => strtolower( '' !== $to ? $to : 'usd' ),
 			'to_date'   => gmdate( 'Y-m-d', $now ),
 			// Extra headroom: weekends/holidays have no rows.
-			'from_date' => gmdate( 'Y-m-d', $now - ( $range * 3 + 5 ) * 86400 ),
+			'from_date' => gmdate( 'Y-m-d', $now - ( $range * $days_per_point + 5 ) * 86400 ),
 		);
 
 		if ( 'coingecko' === $provider_id ) {
@@ -891,7 +899,7 @@ class Rest_Provider {
 	 * Converts [timestamp, value] pairs (CoinGecko) into rows.
 	 *
 	 * @param array $pairs Pair rows.
-	 * @param array $spec  pairs spec (ts unit, value field).
+	 * @param array $spec  pairs spec (ts unit, value field, per_day).
 	 * @return array
 	 */
 	protected static function pairs_to_rows( $pairs, $spec ) {
@@ -906,12 +914,18 @@ class Rest_Provider {
 			if ( $ms ) {
 				$ts = (int) floor( $ts / 1000 );
 			}
-			$rows[] = array(
+			$row = array(
 				'date' => gmdate( 'Y-m-d H:i:s', $ts ),
 				$field => (float) $pair[1],
 			);
+			if ( ! empty( $spec['per_day'] ) ) {
+				// Input is oldest first, so each day keeps its latest price.
+				$rows[ gmdate( 'Y-m-d', $ts ) ] = $row;
+			} else {
+				$rows[] = $row;
+			}
 		}
-		return $rows;
+		return array_values( $rows );
 	}
 
 	/**

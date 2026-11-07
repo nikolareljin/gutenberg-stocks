@@ -55,6 +55,14 @@ class Cache {
 	const NEGATIVE_TTL = 60;
 
 	/**
+	 * How long an entry outlives its TTL, in seconds, for use when a refresh
+	 * cannot run or fails. Fresh reads still honor the TTL.
+	 *
+	 * @var int
+	 */
+	const STALE_GRACE = 3600;
+
+	/**
 	 * Option holding the key index used to purge under object caching.
 	 *
 	 * @var string
@@ -181,18 +189,19 @@ class Cache {
 		}
 		// Entries are shared across TTLs: a short-TTL refresh must not shorten
 		// how long a longer-TTL caller can keep using the entry.
-		$prior = self::get( $key );
+		$lifetime = $ttl + self::STALE_GRACE;
+		$prior    = self::get( $key );
 		if ( null !== $prior && isset( $prior['expires_at'] ) ) {
-			$ttl = max( $ttl, (int) $prior['expires_at'] - time() );
+			$lifetime = max( $lifetime, (int) $prior['expires_at'] - time() );
 		}
 		set_transient(
 			$key,
 			array(
 				'data'       => $data,
 				'fetched_at' => time(),
-				'expires_at' => time() + $ttl,
+				'expires_at' => time() + $lifetime,
 			),
-			$ttl
+			$lifetime
 		);
 		self::index_add( $key );
 	}

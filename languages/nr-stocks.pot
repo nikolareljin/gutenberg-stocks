@@ -1,4 +1,4 @@
-# Copyright (C) 2026 Nik Reljin
+# Copyright (C) Nik Reljin
 # This file is distributed under the GPLv2 or later.
 msgid ""
 msgstr ""

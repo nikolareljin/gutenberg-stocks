@@ -10,11 +10,12 @@ All notable changes to this project are documented in this file.
 - 0.x settings migrate when the plugin is activated, and sites where 1.0.0 already seeded defaults over them are repaired.
 - Saved 0.x charts load the view script and use the site's real REST URL, including plain permalinks and subdirectory installs.
 - The quote panel and a comparison legend now appear on the frontend.
+- CoinGecko daily charts show one point per day instead of the last hours, and Frankfurter weekly and monthly charts return the requested number of points.
 - Alpha Vantage JSON notes on CSV calls report `upstream_limit` or `upstream_error` instead of an empty cached result.
 - Saving settings before the option exists no longer corrupts the cross-origin host list.
 - A block or shortcode with no symbols renders nothing instead of an error notice and a PHP warning.
 - Parallel requests for the same uncached data wait for the fetch in progress instead of starting more, and report `busy` if it does not finish in time.
-- A long per-block TTL no longer freezes other charts of the same symbol, a failed refresh keeps the last good data and waits 60 seconds before retrying, and pages with a temporary failure are not stored by page caches.
+- A long per-block TTL no longer freezes other charts of the same symbol, a failed refresh serves data up to an hour past its TTL and waits 60 seconds before retrying, and pages with a temporary failure, including a failed quote, are not stored by page caches.
 - The settings page no longer prints saved API keys into the page. Leave a field empty to keep its key, or tick "Remove the saved key".
 - Editor preview reports symbols with no data, and typing in search no longer leaves it loading.
 - Uninstall removes all plugin data from every site on a multisite network, including under an object cache. Remaining editor and chart labels are translatable.

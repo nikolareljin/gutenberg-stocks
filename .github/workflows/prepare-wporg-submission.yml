@@ -3,6 +3,9 @@ name: Prepare WP.org Submission
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 env:
   PLUGIN_SLUG: nr-stocks
 

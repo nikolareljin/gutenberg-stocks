@@ -64,6 +64,8 @@ class Renderer {
 				$quote = Rest_Provider::quote( $args['provider'], $symbol, $args['ttl'] );
 				if ( ! empty( $quote['ok'] ) ) {
 					$entry['quote'] = $quote['data'];
+				} elseif ( isset( $quote['error'] ) && self::is_temporary_error( $quote['error'] ) ) {
+					self::prevent_page_caching();
 				}
 			}
 			$symbols[ $symbol ] = $entry;

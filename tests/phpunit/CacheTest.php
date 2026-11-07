@@ -343,6 +343,34 @@ class NR_Stocks_Cache_Test extends WP_UnitTestCase {
 		$this->assertFalse( get_transient( 'nrstx_phpunit_keep_lock' ) );
 	}
 
+	public function test_entry_past_its_ttl_is_refreshed_but_survives_a_failure() {
+		$succeed = function () {
+			return array(
+				'ok'   => true,
+				'data' => array( 'first' ),
+			);
+		};
+		Cache::get_or_fetch( 'nrstx_phpunit_grace', 300, $succeed );
+		$entry               = Cache::get( 'nrstx_phpunit_grace' );
+		$entry['fetched_at'] = time() - 301;
+		set_transient( 'nrstx_phpunit_grace', $entry, 3000 );
+
+		$calls  = 0;
+		$result = Cache::get_or_fetch(
+			'nrstx_phpunit_grace',
+			300,
+			function () use ( &$calls ) {
+				++$calls;
+				return array(
+					'ok'    => false,
+					'error' => 'upstream_limit',
+				);
+			}
+		);
+		$this->assertSame( 1, $calls );
+		$this->assertSame( array( 'first' ), $result['data'] );
+	}
+
 	public function test_failed_refresh_backs_off_upstream() {
 		$this->seed_stale_entry( 'nrstx_phpunit_backoff' );
 		$calls   = 0;
