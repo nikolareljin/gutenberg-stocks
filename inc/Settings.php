@@ -46,6 +46,7 @@ class Settings {
 			),
 			'line_color'        => '#0b163b',
 			'rest_rate_limit'   => 60,
+			'rest_miss_limit'   => 30,
 			'rest_cors_origins' => array(),
 			'av_host'           => '',
 			'av_entrypoint'     => '',
@@ -204,14 +205,6 @@ class Settings {
 				array( 'endpoint' => $endpoint )
 			);
 		}
-		add_settings_field(
-			'nr_stocks_purge',
-			__( 'Purge cache', 'nr-stocks' ),
-			array( $this, 'render_purge_field' ),
-			self::PAGE_SLUG,
-			'nr_stocks_cache'
-		);
-
 		add_settings_section(
 			'nr_stocks_display',
 			__( 'Display', 'nr-stocks' ),
@@ -240,6 +233,13 @@ class Settings {
 			'nr_stocks_headless'
 		);
 		add_settings_field(
+			'nr_stocks_rest_miss_limit',
+			__( 'Anonymous upstream fetches (per minute)', 'nr-stocks' ),
+			array( $this, 'render_miss_limit' ),
+			self::PAGE_SLUG,
+			'nr_stocks_headless'
+		);
+		add_settings_field(
 			'nr_stocks_rest_cors_origins',
 			__( 'Allowed cross-origin hosts', 'nr-stocks' ),
 			array( $this, 'render_cors_origins' ),
@@ -256,6 +256,8 @@ class Settings {
 		$default  = $settings['default_provider'];
 		$config   = Provider_Registry::get( $default );
 		$missing  = null !== $config && ! empty( $config['needs_key'] ) && '' === self::get_key( $default );
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only flag set by handle_purge().
+		$purged = isset( $_GET['nr-stocks-purged'] );
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'NR Stocks Settings', 'nr-stocks' ); ?></h1>
@@ -272,13 +274,23 @@ class Settings {
 					</p>
 				</div>
 			<?php endif; ?>
-			<?php settings_errors( 'nr_stocks_messages' ); ?>
+			<?php if ( $purged ) : ?>
+				<div class="notice notice-success is-dismissible">
+					<p><?php esc_html_e( 'The stock cache was purged.', 'nr-stocks' ); ?></p>
+				</div>
+			<?php endif; ?>
 			<form method="post" action="options.php">
 				<?php
 				settings_fields( 'nr_stocks' );
 				do_settings_sections( self::PAGE_SLUG );
 				submit_button();
 				?>
+			</form>
+			<h2><?php esc_html_e( 'Purge cache', 'nr-stocks' ); ?></h2>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<?php wp_nonce_field( 'nr_stocks_purge_cache' ); ?>
+				<input type="hidden" name="action" value="nr_stocks_purge_cache" />
+				<?php submit_button( __( 'Purge Stock Cache', 'nr-stocks' ), 'secondary', 'nr_stocks_purge', false ); ?>
 			</form>
 		</div>
 		<?php
@@ -321,13 +333,22 @@ class Settings {
 		$settings = self::get();
 		$config   = Provider_Registry::get( $id );
 		$key_name = $config['key_setting'];
-		$value    = isset( $settings['keys'][ $key_name ] ) ? $settings['keys'][ $key_name ] : '';
+		$is_saved = ! empty( $settings['keys'][ $key_name ] );
+		// The saved value is never printed: an empty field keeps it on save.
 		printf(
-			'<input size="50" type="password" autocomplete="new-password" name="%s[keys][%s]" value="%s" />',
+			'<input size="50" type="password" autocomplete="new-password" name="%s[keys][%s]" value="" placeholder="%s" />',
 			esc_attr( NR_STOCKS_OPTION ),
 			esc_attr( $key_name ),
-			esc_attr( $value )
+			esc_attr( $is_saved ? __( 'Saved. Enter a new key to replace it.', 'nr-stocks' ) : '' )
 		);
+		if ( $is_saved ) {
+			printf(
+				'<p><label><input type="checkbox" name="%s[keys_clear][%s]" value="1" /> %s</label></p>',
+				esc_attr( NR_STOCKS_OPTION ),
+				esc_attr( $key_name ),
+				esc_html__( 'Remove the saved key', 'nr-stocks' )
+			);
+		}
 		if ( ! empty( $config['key_url'] ) ) {
 			printf(
 				'<p class="description"><a href="%s" target="_blank" rel="noopener">%s</a></p>',
@@ -393,21 +414,6 @@ class Settings {
 	}
 
 	/**
-	 * Field: purge cache button (separate form with its own nonce).
-	 */
-	public function render_purge_field() {
-		?>
-		</form>
-		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-			<?php wp_nonce_field( 'nr_stocks_purge_cache' ); ?>
-			<input type="hidden" name="action" value="nr_stocks_purge_cache" />
-			<?php submit_button( __( 'Purge Stock Cache', 'nr-stocks' ), 'secondary', 'submit', false ); ?>
-		</form>
-		<form method="post" action="options.php" style="display:none">
-		<?php
-	}
-
-	/**
 	 * Field: line color.
 	 */
 	public function render_line_color() {
@@ -444,6 +450,21 @@ class Settings {
 	}
 
 	/**
+	 * Field: site-wide budget for anonymous upstream fetches.
+	 */
+	public function render_miss_limit() {
+		$settings = self::get();
+		printf(
+			'<input size="10" type="number" min="0" max="3600" step="1" name="%s[rest_miss_limit]" value="%d" />',
+			esc_attr( NR_STOCKS_OPTION ),
+			(int) $settings['rest_miss_limit']
+		);
+		echo '<p class="description">';
+		esc_html_e( 'Cache misses that logged-out REST requests may send upstream, across all visitors. 0 means no limit.', 'nr-stocks' );
+		echo '</p>';
+	}
+
+	/**
 	 * Field: CORS origins.
 	 */
 	public function render_cors_origins() {
@@ -470,11 +491,29 @@ class Settings {
 		$provider                  = isset( $input['default_provider'] ) ? sanitize_key( $input['default_provider'] ) : '';
 		$clean['default_provider'] = null !== Provider_Registry::get( $provider ) ? $provider : 'alphavantage';
 
-		if ( isset( $input['keys'] ) && is_array( $input['keys'] ) ) {
-			foreach ( $clean['keys'] as $name => $unused ) {
-				if ( isset( $input['keys'][ $name ] ) ) {
-					$clean['keys'][ $name ] = sanitize_text_field( $input['keys'][ $name ] );
-				}
+		$saved      = get_option( NR_STOCKS_OPTION, array() );
+		$saved_keys = is_array( $saved ) && isset( $saved['keys'] ) && is_array( $saved['keys'] ) ? $saved['keys'] : array();
+		$new_keys   = isset( $input['keys'] ) && is_array( $input['keys'] ) ? $input['keys'] : array();
+		$to_clear   = isset( $input['keys_clear'] ) && is_array( $input['keys_clear'] ) ? $input['keys_clear'] : array();
+		// Saved keys are kept even while the add-on that uses them is inactive.
+		foreach ( array_keys( $saved_keys ) as $name ) {
+			if ( ! isset( $clean['keys'][ $name ] ) ) {
+				$clean['keys'][ $name ] = '';
+			}
+		}
+		// Providers added through the nr_stocks_providers filter have keys too.
+		foreach ( Provider_Registry::all() as $config ) {
+			if ( ! empty( $config['key_setting'] ) && ! isset( $clean['keys'][ $config['key_setting'] ] ) ) {
+				$clean['keys'][ $config['key_setting'] ] = '';
+			}
+		}
+		foreach ( $clean['keys'] as $name => $unused ) {
+			$new_key = isset( $new_keys[ $name ] ) ? sanitize_text_field( $new_keys[ $name ] ) : '';
+			if ( '' !== $new_key ) {
+				$clean['keys'][ $name ] = $new_key;
+			} elseif ( empty( $to_clear[ $name ] ) && isset( $saved_keys[ $name ] ) ) {
+				// Saved keys are not sent to the form, so an empty field keeps them.
+				$clean['keys'][ $name ] = (string) $saved_keys[ $name ];
 			}
 		}
 
@@ -491,9 +530,14 @@ class Settings {
 
 		$clean['rest_rate_limit'] = isset( $input['rest_rate_limit'] ) ? max( 0, min( 3600, absint( $input['rest_rate_limit'] ) ) ) : 60;
 
+		$clean['rest_miss_limit'] = isset( $input['rest_miss_limit'] ) ? max( 0, min( 3600, absint( $input['rest_miss_limit'] ) ) ) : $clean['rest_miss_limit'];
+
 		$origins = array();
 		if ( isset( $input['rest_cors_origins'] ) ) {
-			$lines = preg_split( '/[\r\n,]+/', (string) $input['rest_cors_origins'] );
+			// WordPress sanitizes twice when the option does not exist yet, so
+			// the already-clean array form has to round-trip here.
+			$raw   = is_array( $input['rest_cors_origins'] ) ? implode( "\n", array_filter( $input['rest_cors_origins'], 'is_string' ) ) : (string) $input['rest_cors_origins'];
+			$lines = preg_split( '/[\r\n,]+/', $raw );
 			foreach ( $lines as $line ) {
 				$line = trim( $line );
 				if ( '' === $line ) {
@@ -513,7 +557,7 @@ class Settings {
 		$clean['av_host']       = isset( $input['av_host'] ) ? esc_url_raw( trim( (string) $input['av_host'] ) ) : '';
 		$clean['av_entrypoint'] = isset( $input['av_entrypoint'] ) ? sanitize_key( trim( (string) $input['av_entrypoint'] ) ) : '';
 
-		if ( function_exists( 'add_settings_error' ) ) {
+		if ( function_exists( 'add_settings_error' ) && empty( get_settings_errors( 'nr_stocks_messages' ) ) ) {
 			add_settings_error(
 				'nr_stocks_messages',
 				'settings_updated',

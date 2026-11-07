@@ -6,8 +6,8 @@ fetch at all: the block/shortcode render bakes data into the markup.
 
 ## TTL layers (highest priority first)
 
-1. Per-request override: block attribute `cacheTtl` / REST `ttl` param /
-   shortcode `ttl=""` (seconds, `0` = inherit).
+1. Per-request override: block attribute `cacheTtl` / shortcode `ttl=""` /
+   REST `ttl` param for logged-in editors (seconds, `0` = inherit).
 2. Saved per-endpoint setting: Settings → NR Stocks → Caching.
 3. Built-in defaults: series 300s (5 min), quote 60s (1 min), search 3600s.
 
@@ -22,16 +22,28 @@ endpoint (not recommended in production).
   get persistent, shared caching for free; the settings screen reports
   whether one was detected.
 - Stampede protection: a 15s fetch mutex (atomic `wp_cache_add` under
-  object caching, advisory transient otherwise) — parallel cold requests
-  trigger one upstream fetch.
-- Errors cached 60s (negative cache), so a dead upstream degrades instead
-  of melting quotas.
+  object caching, advisory transient otherwise, so a tight race can still
+  fetch twice). Parallel cold requests wait up to 13s for the fetch in
+  progress (`nr_stocks_lock_wait_ms` filter), then report `busy`.
+- Ranges share entries: upstream requests use 30, 90, 180, or 365 points, or a
+  single entry when the provider URL takes no range, and each response is sliced
+  to the requested `range`. Each caller still applies
+  its own TTL, so a long per-block TTL does not freeze other charts.
+- Entries outlive their TTL by one hour. A fresh read still honors the TTL, but
+  an older entry is served when a refresh fails, is over budget, or is already
+  in progress. After a failed refresh, upstream is left alone for 60s. A
+  short-TTL refresh never shortens an entry's lifetime.
+- A page holding a temporary failure tells page caches not to store it. A
+  request upstream rejected, such as a delisted symbol, is not temporary: it is
+  remembered for an hour and does not affect page caching.
+- Temporary errors are cached 60s (negative cache), so a dead upstream degrades
+  instead of melting quotas.
 - Purge: the settings button, saving settings, `wp nr-stocks cache purge`,
   or `Cache::purge_all()` (key index + options-table fallback; never a
   global object-cache flush).
 - HTTP: REST answers carry `Cache-Control: max-age=<ttl>`, an `ETag`, and
-  `X-NR-Stocks-Cache: HIT|MISS`. The frontend JS keeps an in-memory dedupe
-  map, so re-renders never refetch.
+  `X-NR-Stocks-Cache: HIT|MISS`. The frontend JS dedupes identical requests
+  while they are in flight.
 
 ## High-traffic recipe
 
@@ -41,5 +53,6 @@ endpoint (not recommended in production).
    older data is acceptable; keep `Cache-Control` in mind for CDN layers.
 3. Warm important symbols after deploys:
    `wp nr-stocks fetch --provider=… --symbol=…` (also useful in cron).
-4. Keep the REST rate limit on (default 60/min/IP) and the CORS allowlist
-   tight; both live under Settings → NR Stocks → REST API.
+4. Keep the REST rate limit on (default 60/min/IP), size the anonymous
+   upstream budget (default 30/min) to your provider's quota, and keep the
+   CORS allowlist tight; all three live under Settings → NR Stocks → REST API.

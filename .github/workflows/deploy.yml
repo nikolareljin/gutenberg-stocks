@@ -1,9 +1,22 @@
 name: Deploy to WordPress.org
 
+# Tags pushed by Auto Tag Release use GITHUB_TOKEN and cannot fire the push
+# trigger, so Create GitHub Release calls this workflow at the tag ref. The push
+# trigger covers tags pushed by hand; workflow_dispatch re-runs a tag.
 on:
   push:
     tags:
       - '*'
+  workflow_dispatch:
+  workflow_call:
+    secrets:
+      SVN_USERNAME:
+        required: false
+      SVN_PASSWORD:
+        required: false
+
+permissions:
+  contents: read
 
 concurrency:
   group: deploy
@@ -24,11 +37,6 @@ jobs:
         with:
           node-version: 24
 
-      - name: Use PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.2'
-
       - name: Build ZIP
         run: bash bin/build-zip.sh
 
@@ -40,19 +48,32 @@ jobs:
           echo "dist directory contents:"
           ls -lah dist || true
 
+      - name: Require the tag to match the plugin version
+        if: github.ref_type == 'tag'
+        run: |
+          version="$(sed -nE 's/^[[:space:]]*\*[[:space:]]*Version:[[:space:]]*([0-9.]+).*/\1/p' nr-stocks.php | head -n 1)"
+          if [ "${GITHUB_REF_NAME}" != "${version}" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match plugin version ${version}."
+            exit 1
+          fi
+
       - name: Check if WP.org SVN repo exists
         run: |
           sudo apt-get update
           sudo apt-get install -y subversion
-          if svn ls https://plugins.svn.wordpress.org/nr-stocks > /dev/null 2>&1; then
-            echo "SVN_EXISTS=true" >> $GITHUB_ENV
-          else
-            echo "SVN_EXISTS=false" >> $GITHUB_ENV
-          fi
+          status="$(curl -s -o /dev/null -w '%{http_code}' https://plugins.svn.wordpress.org/nr-stocks/)"
+          case "${status}" in
+            200) echo "SVN_EXISTS=true" >> "$GITHUB_ENV" ;;
+            404) echo "SVN_EXISTS=false" >> "$GITHUB_ENV" ;;
+            *)
+              echo "::error::Could not reach the SVN repository (HTTP ${status})."
+              exit 1
+              ;;
+          esac
 
       - name: WordPress.org Plugin Deploy
-        if: env.SVN_EXISTS == 'true'
-        uses: 10up/action-wordpress-plugin-deploy@stable
+        if: env.SVN_EXISTS == 'true' && github.ref_type == 'tag'
+        uses: 10up/action-wordpress-plugin-deploy@54bd289b8525fd23a5c365ec369185f2966529c2 # 2.3.0
         with:
           generate-zip: false
         env:
@@ -61,12 +82,6 @@ jobs:
           SLUG: nr-stocks
           SVN_URL: https://plugins.svn.wordpress.org/nr-stocks
 
-      - name: Dry-run deploy (SVN repo not found)
-        if: env.SVN_EXISTS != 'true'
-        uses: 10up/action-wordpress-plugin-deploy@stable
-        with:
-          generate-zip: false
-          dry-run: true
-        env:
-          SLUG: nr-stocks
-          SVN_URL: https://plugins.svn.wordpress.org/nr-stocks
+      - name: Report skipped upload
+        if: env.SVN_EXISTS != 'true' || github.ref_type != 'tag'
+        run: echo "::notice::Payload verified; nothing uploaded (SVN_EXISTS=${SVN_EXISTS}, ref type ${GITHUB_REF_TYPE})."

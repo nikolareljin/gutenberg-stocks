@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: Version tag to release (for example, 0.1.1)
+        description: Version tag to release (for example, 0.1.1). Run this from that tag, or deploy is skipped.
         required: true
         type: string
 
@@ -16,3 +16,15 @@ jobs:
     uses: nikolareljin/ci-helpers/.github/workflows/create-github-release.yml@production
     with:
       release_tag: ${{ inputs.release_tag }}
+
+  deploy:
+    needs: release
+    # Dispatched by hand from a branch, the release still publishes but deploy
+    # is visibly skipped: it must build from the tag itself.
+    if: github.ref_type == 'tag' && github.ref_name == inputs.release_tag
+    uses: ./.github/workflows/deploy.yml
+    permissions:
+      contents: read
+    secrets:
+      SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+      SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}

@@ -27,7 +27,11 @@ class Renderer {
 	 * @return string HTML.
 	 */
 	public static function render_chart( $args ) {
-		$args     = self::normalize_args( $args );
+		$args = self::normalize_args( $args );
+		if ( empty( $args['symbols'] ) ) {
+			// Nothing to chart yet, for example a block with no symbols added.
+			return '';
+		}
 		$settings = Settings::get();
 		$color    = isset( $settings['line_color'] ) ? $settings['line_color'] : '#0b163b';
 
@@ -60,9 +64,18 @@ class Renderer {
 				$quote = Rest_Provider::quote( $args['provider'], $symbol, $args['ttl'] );
 				if ( ! empty( $quote['ok'] ) ) {
 					$entry['quote'] = $quote['data'];
+				} elseif ( isset( $quote['error'] ) && self::is_temporary_error( $quote['error'] ) ) {
+					self::prevent_page_caching();
 				}
 			}
 			$symbols[ $symbol ] = $entry;
+		}
+
+		foreach ( $symbols as $entry ) {
+			if ( '' !== $entry['error'] && self::is_temporary_error( $entry['error'] ) ) {
+				self::prevent_page_caching();
+				break;
+			}
 		}
 
 		if ( count( $symbols ) === $failed ) {
@@ -78,6 +91,10 @@ class Renderer {
 			'series'   => $args['series'],
 			'color'    => $color,
 			'symbols'  => $symbols,
+			'labels'   => array(
+				'chart'  => __( 'Price chart', 'nr-stocks' ),
+				'noData' => __( 'No data', 'nr-stocks' ),
+			),
 		);
 
 		$fallback = '';
@@ -102,10 +119,41 @@ class Renderer {
 
 		return sprintf(
 			'<figure class="nr-stocks" data-nr-stocks="1"><script type="application/json" class="nr-stocks-data">%s</script><div class="nr-stocks-canvas" role="img" aria-label="%s"></div><ul class="nr-stocks-fallback">%s</ul></figure>',
-			wp_json_encode( $payload ),
+			wp_json_encode( $payload, JSON_HEX_TAG | JSON_HEX_AMP ),
 			esc_attr__( 'Stock price chart', 'nr-stocks' ),
 			$fallback
 		);
+	}
+
+	/**
+	 * Whether an error can clear up without the site owner changing anything.
+	 *
+	 * @param string $code Error code.
+	 * @return bool
+	 */
+	public static function is_temporary_error( $code ) {
+		return ! in_array(
+			$code,
+			array( 'unsupported_series', 'unsupported_asset', 'unsupported_pair', 'bad_symbol', 'unknown_provider', 'missing_key', 'forbidden_host', 'upstream_error' ),
+			true
+		);
+	}
+
+	/**
+	 * Keeps a page holding a temporary failure out of page caches.
+	 */
+	protected static function prevent_page_caching() {
+		if ( ! defined( 'DONOTCACHEPAGE' ) ) {
+			// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedConstantFound -- convention read by page-cache plugins.
+			define( 'DONOTCACHEPAGE', true );
+		}
+		if ( ! headers_sent() ) {
+			nocache_headers();
+		}
+		/**
+		 * Fires when a temporary data failure keeps the page out of page caches.
+		 */
+		do_action( 'nr_stocks_page_uncacheable' );
 	}
 
 	/**

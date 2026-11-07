@@ -49,7 +49,7 @@ structure stored in post content, editable in the sidebar with a live
 preview:
 
 ```html
-<!-- wp:nr-stocks/stock-chart {"symbols":"AAPL,MSFT","provider":"twelvedata"} /-->
+<!-- wp:nr-stocks/stock-chart {"symbols":["AAPL","MSFT"],"provider":"twelvedata"} /-->
 ```
 
 - Block (default): insert **Stock Chart**, search symbols, tune
@@ -81,9 +81,14 @@ test stack (`NRSTX_TEST_PORT`, `NRSTX_WP_VERSION`).
 1. Merge a `release/X.Y.Z` PR → tag + GitHub Release are automated.
 2. Run the manual **Prepare WP.org Submission** workflow → review ZIP.
 3. Submit at `wordpress.org/plugins/developers/add/` (first time only).
-4. The **Deploy to WordPress.org** workflow pushes tags to SVN
-   (needs `SVN_USERNAME` / `SVN_PASSWORD` secrets; dry-runs until the SVN
-   repo exists).
+4. The **Deploy to WordPress.org** workflow runs after the GitHub Release
+   and pushes the tag to SVN (needs `SVN_USERNAME` / `SVN_PASSWORD` secrets;
+   until the SVN repo exists it verifies the payload and skips the upload).
+   Running **Create GitHub Release** by hand from a branch publishes the release
+   but skips the deploy, so select the tag as the ref.
+   A tag released before the repo existed needs one manual run: dispatch the
+   workflow with that tag as the ref. Tags older than this workflow's
+   `workflow_dispatch` trigger cannot be re-run, so cut a new release instead.
 
 Docs: `docs/adding-a-provider.md`, `docs/rest-api.md`, `docs/caching.md`.
 WP.org page assets live in `.wordpress-org/` (never in the ZIP).

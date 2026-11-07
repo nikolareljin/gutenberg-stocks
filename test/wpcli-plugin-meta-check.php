@@ -26,7 +26,6 @@ $plugin_data = get_file_data(
         'Name'            => 'Plugin Name',
         'Version'         => 'Version',
         'RequiresAtLeast' => 'Requires at least',
-        'TestedUpTo'      => 'Tested up to',
         'RequiresPHP'     => 'Requires PHP',
         'TextDomain'      => 'Text Domain',
         'DomainPath'      => 'Domain Path',
@@ -121,7 +120,8 @@ $results['uninstall_present'] = array(
 );
 
 $results['pot_present'] = array(
-    'ok' => is_readable($plugin_dir . '/languages/nr-stocks.pot'),
+    'ok' => is_readable($plugin_dir . '/languages/nr-stocks.pot')
+        && filesize($plugin_dir . '/languages/nr-stocks.pot') > 0,
 );
 
 $results['build_present'] = array(

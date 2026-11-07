@@ -79,6 +79,7 @@ class NR_Stocks_Rest_Provider_Test extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'function=DIGITAL_CURRENCY_DAILY', $this->mock_calls[4] );
 		$this->assertStringContainsString( 'symbol=BTC', $this->mock_calls[4] );
 		$this->assertStringContainsString( 'market=USD', $this->mock_calls[4] );
+		$this->assertStringContainsString( 'symbol=BTC&', $this->mock_calls[4] );
 	}
 
 	public function test_av_quote_strips_percent() {
@@ -155,9 +156,9 @@ class NR_Stocks_Rest_Provider_Test extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'base=EUR', $this->mock_calls[0] );
 		$this->assertStringContainsString( 'quotes=USD', $this->mock_calls[0] );
 
-		// Quote is synthesized from the series (no quote endpoint configured).
-		$this->mock_http( self::fixture( 'frankfurter.json' ) );
+		// Quote is synthesized from the series and shares its cached entry.
 		$quote = Rest_Provider::quote( 'frankfurter', 'EUR/USD' );
+		$this->assertCount( 1, $this->mock_calls );
 		$this->assertTrue( $quote['ok'] );
 		$this->assertSame( 1.1282, $quote['data']['price'] );
 		$this->assertTrue( $quote['meta']['synthetic'] );
@@ -165,7 +166,15 @@ class NR_Stocks_Rest_Provider_Test extends WP_UnitTestCase {
 		$this->mock_http( self::fixture( 'frankfurter_currencies.json' ) );
 		$search = Rest_Provider::search( 'frankfurter', 'dollar' );
 		$this->assertTrue( $search['ok'] );
-		$this->assertSame( 'USD', $search['data'][0]['symbol'] );
+		$this->assertSame( 'USD/EUR', $search['data'][0]['symbol'] );
+
+		$this->mock_http( self::fixture( 'frankfurter_currencies.json' ) );
+		$euro = Rest_Provider::search( 'frankfurter', 'euro' );
+		$this->assertSame( 'EUR/USD', $euro['data'][0]['symbol'] );
+
+		$this->mock_http( self::fixture( 'frankfurter_currencies.json' ) );
+		$coins = Rest_Provider::search( 'frankfurter', 'coin' );
+		$this->assertSame( array(), $coins['data'] );
 	}
 
 	public function test_coingecko_series_quote_and_local_search() {
@@ -173,7 +182,7 @@ class NR_Stocks_Rest_Provider_Test extends WP_UnitTestCase {
 		$result = Rest_Provider::series( 'coingecko', 'BTC/USD', 'daily', 30 );
 		$this->assertTrue( $result['ok'] );
 		$this->assertCount( 3, $result['data'] );
-		$this->assertSame( '2026-11-03 16:00:00', $result['data'][0]['date'] );
+		$this->assertSame( '2026-11-03', $result['data'][0]['date'] );
 		$this->assertSame( 77623.43, $result['data'][0]['close'] );
 		$this->assertStringContainsString( '/coins/bitcoin/market_chart', $this->mock_calls[0] );
 		$this->assertStringContainsString( 'vs_currency=usd', $this->mock_calls[0] );
@@ -239,5 +248,237 @@ class NR_Stocks_Rest_Provider_Test extends WP_UnitTestCase {
 		$this->assertFalse( $first['cached'] );
 		$this->assertTrue( $second['cached'] );
 		$this->assertCount( 1, $this->mock_calls );
+	}
+
+	public function test_multiline_av_note_is_a_limit_error_and_not_a_cached_success() {
+		$body = self::fixture( 'av_note_multiline.json' );
+		$this->mock_http( $body );
+		$series = Rest_Provider::series( 'alphavantage', 'IBM', 'daily', 30 );
+		$this->assertFalse( $series['ok'] );
+		$this->assertSame( 'upstream_limit', $series['error'] );
+
+		$this->mock_http( $body );
+		$quote = Rest_Provider::quote( 'alphavantage', 'IBM' );
+		$this->assertFalse( $quote['ok'] );
+		$this->assertSame( 'upstream_limit', $quote['error'] );
+	}
+
+	public function test_synthetic_quote_keeps_the_series_error() {
+		$this->mock_http( '', 500 );
+		$quote = Rest_Provider::quote( 'frankfurter', 'EUR/USD' );
+		$this->assertFalse( $quote['ok'] );
+		$this->assertSame( 'http_error', $quote['error'] );
+	}
+
+	public function test_av_notices_are_limits_whatever_their_wording() {
+		$notices = array(
+			'{"Information": "Thank you for using Alpha Vantage! Please spread out your calls to no more than 2 requests per second."}',
+			"{\n    \"Information\": \"Burst pattern detected. Please try again shortly.\"\n}",
+			'{"Note": "Please consider spreading out your calls."}',
+		);
+		foreach ( $notices as $index => $body ) {
+			$this->mock_http( $body );
+			$result = Rest_Provider::series( 'alphavantage', 'IBM' . $index, 'daily', 30 );
+			$this->assertSame( 'upstream_limit', $result['error'], $body );
+		}
+	}
+
+	public function test_empty_json_on_a_csv_call_is_not_a_rejection() {
+		$this->mock_http( '{}' );
+		$result = Rest_Provider::series( 'alphavantage', 'IBM', 'daily', 30 );
+		$this->assertSame( 'parse_error', $result['error'] );
+	}
+
+	public function test_multiline_av_error_message_is_an_upstream_error() {
+		$this->mock_http( "{\n    \"Error Message\": \"Invalid API call.\"\n}" );
+		$result = Rest_Provider::series( 'alphavantage', 'IBM', 'daily', 30 );
+		$this->assertSame( 'upstream_error', $result['error'] );
+	}
+
+	public function test_csv_without_expected_columns_is_a_parse_error() {
+		$this->mock_http( "foo,bar\n1,2\n" );
+		$result = Rest_Provider::series( 'alphavantage', 'IBM', 'daily', 30 );
+		$this->assertFalse( $result['ok'] );
+		$this->assertSame( 'parse_error', $result['error'] );
+	}
+
+	public function test_ranges_share_one_fetch_when_the_url_takes_no_range() {
+		$this->mock_http( self::fixture( 'av_daily.csv' ) );
+		$short = Rest_Provider::series( 'alphavantage', 'IBM', 'daily', 1 );
+		$long  = Rest_Provider::series( 'alphavantage', 'IBM', 'daily', 300 );
+		$this->assertCount( 1, $this->mock_calls );
+		$this->assertCount( 1, $short['data'] );
+		$this->assertGreaterThan( 1, count( $long['data'] ) );
+	}
+
+	public function test_every_pair_offered_by_search_can_be_charted() {
+		foreach ( array(
+			'renminbi' => 'CNH/USD',
+			'gold'     => 'XAU/USD',
+			'euro'     => 'EUR/USD',
+		) as $query => $pair ) {
+			$this->mock_http( self::fixture( 'frankfurter_currencies.json' ) );
+			$found = Rest_Provider::search( 'frankfurter', $query );
+			$this->assertSame( $pair, $found['data'][0]['symbol'] );
+
+			$this->mock_http( self::fixture( 'frankfurter.json' ) );
+			$chart = Rest_Provider::series( 'frankfurter', $pair, 'daily', 30 );
+			$this->assertTrue( $chart['ok'], $pair );
+			$this->assertSame( 'forex', $chart['meta']['asset'] );
+		}
+	}
+
+	public function test_iso_pairs_reach_forex_providers_and_coins_do_not() {
+		$this->mock_http( self::fixture( 'frankfurter.json' ) );
+		$forex = Rest_Provider::series( 'frankfurter', 'EUR/RON', 'daily', 30 );
+		$this->assertTrue( $forex['ok'] );
+		$this->assertSame( 'forex', $forex['meta']['asset'] );
+
+		$calls = count( $this->mock_calls );
+		$coin  = Rest_Provider::series( 'frankfurter', 'BTC/USD', 'daily', 30 );
+		$this->assertSame( 'unsupported_series', $coin['error'] );
+		$this->assertCount( $calls, $this->mock_calls );
+	}
+
+	public function test_any_iso_currency_pair_uses_the_forex_endpoint() {
+		$this->mock_http( self::fixture( 'av_daily.csv' ) );
+		$result = Rest_Provider::series( 'alphavantage', 'EUR/RSD', 'daily', 30 );
+		$this->assertSame( 'forex', $result['meta']['asset'] );
+		$this->assertStringContainsString( 'function=FX_DAILY', $this->mock_calls[0] );
+	}
+
+	public function test_coingecko_unmapped_coin_uses_the_base_as_id() {
+		$this->mock_http( self::fixture( 'cg_history.json' ) );
+		Rest_Provider::series( 'coingecko', 'PEPE/USD', 'daily', 30 );
+		$this->assertStringContainsString( '/coins/pepe/market_chart', $this->mock_calls[0] );
+
+		$this->mock_http( self::fixture( 'cg_history.json' ) );
+		Rest_Provider::series( 'coingecko', '../USD', 'daily', 30 );
+		$this->assertStringNotContainsString( '..', end( $this->mock_calls ) );
+	}
+
+	public function test_search_reports_upstream_limits() {
+		$this->mock_http( self::fixture( 'av_note_multiline.json' ) );
+		$result = Rest_Provider::search( 'alphavantage', 'ibm' );
+		$this->assertFalse( $result['ok'] );
+		$this->assertSame( 'upstream_limit', $result['error'] );
+	}
+
+	public function test_nearby_ranges_share_one_fetch_when_the_url_takes_a_range() {
+		$this->mock_http( self::fixture( 'td_series.json' ) );
+		$short = Rest_Provider::series( 'twelvedata', 'AAPL', 'daily', 2 );
+		$long  = Rest_Provider::series( 'twelvedata', 'AAPL', 'daily', 20 );
+		$this->assertCount( 1, $this->mock_calls );
+		$this->assertStringContainsString( 'outputsize=30', $this->mock_calls[0] );
+		$this->assertCount( 2, $short['data'] );
+		$this->assertCount( 3, $long['data'] );
+		$this->assertTrue( $long['cached'] );
+	}
+
+	public function test_coingecko_daily_series_has_one_row_per_day() {
+		$start  = 1793721600000;
+		$prices = array();
+		for ( $hour = 0; $hour < 24 * 40; $hour++ ) {
+			$prices[] = array( $start + $hour * 3600000, 100 + $hour );
+		}
+		$this->mock_http( wp_json_encode( array( 'prices' => $prices ) ) );
+		$result = Rest_Provider::series( 'coingecko', 'BTC/USD', 'daily', 30 );
+		$this->assertCount( 30, $result['data'] );
+		$first = strtotime( $result['data'][0]['date'] );
+		$last  = strtotime( $result['data'][29]['date'] );
+		$this->assertGreaterThan( 28 * DAY_IN_SECONDS, $last - $first );
+		$this->assertSame( (float) ( 100 + 24 * 40 - 1 ), (float) $result['data'][29]['close'] );
+	}
+
+	public function test_coingecko_midnight_point_closes_the_previous_day() {
+		$midnight = gmmktime( 0, 0, 0, 11, 5, 2026 ) * 1000;
+		$prices   = array(
+			array( $midnight - 3600000, 10 ),
+			array( $midnight, 20 ),
+			array( $midnight + 3600000, 30 ),
+		);
+		$this->mock_http( wp_json_encode( array( 'prices' => $prices ) ) );
+		$rows = Rest_Provider::series( 'coingecko', 'BTC/USD', 'daily', 30 )['data'];
+		$this->assertSame( '2026-11-04', $rows[0]['date'] );
+		$this->assertSame( 20, (int) $rows[0]['close'] );
+		$this->assertSame( '2026-11-05', $rows[1]['date'] );
+		$this->assertSame( 30, (int) $rows[1]['close'] );
+	}
+
+	/**
+	 * Days between the from and to dates of a Frankfurter request.
+	 *
+	 * @param string $series Series id.
+	 * @return int
+	 */
+	protected function frankfurter_window_days( $series ) {
+		$this->mock_http( self::fixture( 'frankfurter.json' ) );
+		Rest_Provider::series( 'frankfurter', 'EUR/USD', $series, 30 );
+		$url = end( $this->mock_calls );
+		wp_parse_str( (string) wp_parse_url( $url, PHP_URL_QUERY ), $query );
+		return (int) ( ( strtotime( $query['to'] ) - strtotime( $query['from'] ) ) / DAY_IN_SECONDS );
+	}
+
+	public function test_frankfurter_window_covers_the_requested_points_per_series() {
+		$this->assertGreaterThanOrEqual( 30, $this->frankfurter_window_days( 'daily' ) );
+		$this->assertGreaterThanOrEqual( 30 * 7, $this->frankfurter_window_days( 'weekly' ) );
+		$this->assertGreaterThanOrEqual( 30 * 31, $this->frankfurter_window_days( 'monthly' ) );
+	}
+
+	public function test_unknown_intraday_intervals_share_the_default_entry() {
+		$this->mock_http( self::fixture( 'av_daily.csv' ) );
+		Rest_Provider::series( 'alphavantage', 'IBM', 'intraday', 30, 'aaa' );
+		$second = Rest_Provider::series( 'alphavantage', 'IBM', 'intraday', 30, 'bbb' );
+		$third  = Rest_Provider::series( 'alphavantage', 'IBM', 'intraday', 30, '15min' );
+		$this->assertCount( 1, $this->mock_calls );
+		$this->assertStringContainsString( 'interval=15min', $this->mock_calls[0] );
+		$this->assertTrue( $second['cached'] );
+		$this->assertTrue( $third['cached'] );
+	}
+
+	public function test_upstream_rejection_is_remembered_for_an_hour() {
+		$this->mock_http( '', 404 );
+		$result = Rest_Provider::series( 'coingecko', 'NOPE/USD', 'daily', 30 );
+		$this->assertSame( 'upstream_error', $result['error'] );
+
+		$key     = Nikolareljin\NrStocks\Cache::make_key( 'coingecko', 'series', array( 'NOPE/USD', 'daily', 30, '', 'crypto' ) );
+		$timeout = (int) get_option( '_transient_timeout_' . $key );
+		$this->assertGreaterThan( time() + 3000, $timeout );
+	}
+
+	public function test_invalid_currency_is_a_rejection() {
+		$this->mock_http( '', 422 );
+		$result = Rest_Provider::series( 'frankfurter', 'EUR/VED', 'daily', 30 );
+		$this->assertSame( 'upstream_error', $result['error'] );
+	}
+
+	public function test_unknown_coin_quote_is_a_rejection() {
+		$this->mock_http( '{}' );
+		$result = Rest_Provider::quote( 'coingecko', 'ZZZ/USD' );
+		$this->assertSame( 'upstream_error', $result['error'] );
+	}
+
+	public function test_server_errors_stay_temporary() {
+		$this->mock_http( '', 500 );
+		$result = Rest_Provider::series( 'coingecko', 'NOPE/USD', 'daily', 30 );
+		$this->assertSame( 'http_error', $result['error'] );
+	}
+
+	public function test_csv_with_dates_but_no_close_is_a_parse_error() {
+		$this->mock_http( "timestamp,open\n2026-10-30,1\n" );
+		$result = Rest_Provider::series( 'alphavantage', 'IBM', 'daily', 30 );
+		$this->assertFalse( $result['ok'] );
+		$this->assertSame( 'parse_error', $result['error'] );
+	}
+
+	public function test_unknown_intervals_and_nearby_ranges_share_one_fetch() {
+		$this->mock_http( self::fixture( 'av_daily.csv' ) );
+		$first  = Rest_Provider::series( 'alphavantage', 'IBM', 'daily', 2, 'aaa' );
+		$second = Rest_Provider::series( 'alphavantage', 'IBM', 'daily', 1, 'bbb' );
+		$this->assertCount( 1, $this->mock_calls );
+		$this->assertCount( 2, $first['data'] );
+		$this->assertCount( 1, $second['data'] );
+		$this->assertTrue( $second['cached'] );
+		$this->assertSame( end( $first['data'] )['date'], end( $second['data'] )['date'] );
 	}
 }

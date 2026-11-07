@@ -59,6 +59,12 @@ for required in nr-stocks.php readme.txt uninstall.php languages/nr-stocks.pot \
   fi
 done
 
+# An empty or header-only POT would pass the existence check above.
+pot_strings="$(grep -c '^msgid ' "${DIST_DIR}/languages/nr-stocks.pot" 2>/dev/null || true)"
+if [ "${pot_strings:-0}" -lt 10 ]; then
+  violation "languages/nr-stocks.pot holds ${pot_strings:-0} strings"
+fi
+
 # 6. Version consistency across the four manifests.
 bootstrap_version="$(grep -m1 -E '^[[:space:]]*\*[[:space:]]*Version:' "${DIST_DIR}/nr-stocks.php" | sed -E 's/.*Version:[[:space:]]*([0-9]+\.[0-9]+\.[0-9]+).*/\1/' || true)"
 stable_tag="$(grep -m1 -E '^Stable tag:' "${DIST_DIR}/readme.txt" | sed -E 's/.*Stable tag:[[:space:]]*([0-9]+\.[0-9]+\.[0-9]+).*/\1/' || true)"

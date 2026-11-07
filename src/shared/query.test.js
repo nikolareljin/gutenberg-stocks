@@ -25,6 +25,16 @@ describe( 'sanitizeSymbol', () => {
 	} );
 } );
 
+describe( 'buildRestPath with a plain-permalink base', () => {
+	it( 'appends params with an ampersand', () => {
+		expect(
+			buildRestPath( '/index.php?rest_route=/nr-stocks/v1', 'series', {
+				range: 5,
+			} )
+		).toBe( '/index.php?rest_route=/nr-stocks/v1/series&range=5' );
+	} );
+} );
+
 describe( 'buildRestPath', () => {
 	it( 'joins base, route, and encoded params', () => {
 		expect(

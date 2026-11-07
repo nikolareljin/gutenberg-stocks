@@ -154,4 +154,172 @@ class NR_Stocks_Rest_Test extends WP_UnitTestCase {
 		$this->assertSame( 429, $limited->get_status() );
 		$this->assertSame( 'nr_stocks_rate_limited', $limited->get_data()['code'] );
 	}
+
+	public function test_anonymous_ttl_is_ignored() {
+		$this->mock_http( self::fixture( 'td_series.json' ) );
+		$response = $this->get(
+			'/nr-stocks/v1/series',
+			array(
+				'provider' => 'twelvedata',
+				'symbols'  => 'AAPL',
+				'ttl'      => 86400,
+			)
+		);
+		$this->assertStringContainsString( 'max-age=300', $response->get_headers()['Cache-Control'] );
+	}
+
+	public function test_editor_ttl_is_honored() {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'editor' ) ) );
+		$this->mock_http( self::fixture( 'td_series.json' ) );
+		$response = $this->get(
+			'/nr-stocks/v1/series',
+			array(
+				'provider' => 'twelvedata',
+				'symbols'  => 'AAPL',
+				'ttl'      => 900,
+			)
+		);
+		$this->assertStringContainsString( 'max-age=900', $response->get_headers()['Cache-Control'] );
+	}
+
+	public function test_failed_symbols_are_not_stored_downstream() {
+		update_option( NR_STOCKS_OPTION, array( 'keys' => array() ) );
+		$response = $this->get(
+			'/nr-stocks/v1/series',
+			array(
+				'provider' => 'alphavantage',
+				'symbols'  => 'IBM',
+			)
+		);
+		$this->assertSame( 'no-store', $response->get_headers()['Cache-Control'] );
+	}
+
+	public function test_anonymous_upstream_budget_stops_misses_and_clears_the_guard() {
+		$settings                    = Nikolareljin\NrStocks\Settings::get();
+		$settings['rest_miss_limit'] = 1;
+		update_option( NR_STOCKS_OPTION, $settings );
+		$this->mock_http( self::fixture( 'td_series.json' ) );
+
+		$response = $this->get(
+			'/nr-stocks/v1/series',
+			array(
+				'provider' => 'twelvedata',
+				'symbols'  => 'AAPL,MSFT',
+			)
+		);
+		$data     = $response->get_data()['data'];
+		$this->assertTrue( $data['AAPL']['ok'] );
+		$this->assertSame( 'upstream_budget', $data['MSFT']['error'] );
+		$this->assertCount( 1, $this->mock_calls );
+
+		// Server-side rendering runs outside the handlers and stays unlimited.
+		$this->mock_http( self::fixture( 'td_series.json' ) );
+		$rendered = Nikolareljin\NrStocks\Providers\Rest_Provider::series( 'twelvedata', 'TSLA', 'daily', 30 );
+		$this->assertTrue( $rendered['ok'] );
+	}
+
+	public function test_editors_are_exempt_from_the_upstream_budget() {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'editor' ) ) );
+		$settings                    = Nikolareljin\NrStocks\Settings::get();
+		$settings['rest_miss_limit'] = 1;
+		update_option( NR_STOCKS_OPTION, $settings );
+		$this->mock_http( self::fixture( 'td_series.json' ) );
+		$this->mock_http( self::fixture( 'td_series.json' ) );
+
+		$data = $this->get(
+			'/nr-stocks/v1/series',
+			array(
+				'provider' => 'twelvedata',
+				'symbols'  => 'AAPL,MSFT',
+			)
+		)->get_data()['data'];
+		$this->assertTrue( $data['AAPL']['ok'] );
+		$this->assertTrue( $data['MSFT']['ok'] );
+	}
+
+	public function test_retry_after_reports_the_remaining_window() {
+		$settings                    = Nikolareljin\NrStocks\Settings::get();
+		$settings['rest_rate_limit'] = 1;
+		update_option( NR_STOCKS_OPTION, $settings );
+		$client = function () {
+			return '198.51.100.7';
+		};
+		add_filter( 'nr_stocks_client_ip', $client );
+		set_transient(
+			'nrstx_rl_' . md5( '198.51.100.7|/nr-stocks/v1/providers' ),
+			array(
+				'count' => 1,
+				'reset' => time() + 10,
+			),
+			10
+		);
+
+		$limited = $this->get( '/nr-stocks/v1/providers' );
+		remove_filter( 'nr_stocks_client_ip', $client );
+
+		$this->assertSame( 429, $limited->get_status() );
+		$this->assertGreaterThan( 0, $limited->get_data()['data']['retry_after'] );
+		$this->assertLessThanOrEqual( 10, $limited->get_data()['data']['retry_after'] );
+	}
+
+	public function test_rate_limit_ip_is_filterable() {
+		$settings                    = Nikolareljin\NrStocks\Settings::get();
+		$settings['rest_rate_limit'] = 1;
+		update_option( NR_STOCKS_OPTION, $settings );
+
+		$this->assertSame( 200, $this->get( '/nr-stocks/v1/providers' )->get_status() );
+		$limited = $this->get( '/nr-stocks/v1/providers' );
+		$this->assertSame( 429, $limited->get_status() );
+
+		$other_client = function () {
+			return '203.0.113.9';
+		};
+		add_filter( 'nr_stocks_client_ip', $other_client );
+		$this->assertSame( 200, $this->get( '/nr-stocks/v1/providers' )->get_status() );
+		remove_filter( 'nr_stocks_client_ip', $other_client );
+	}
+
+	public function test_error_headers_on_own_routes_only() {
+		$routes  = Nikolareljin\NrStocks\Rest\Routes::class;
+		$limited = new WP_REST_Response( array( 'data' => array( 'retry_after' => 12 ) ), 429 );
+		$own     = new WP_REST_Request( 'GET', '/nr-stocks/v1/series' );
+		$headers = $routes::error_headers( $limited, null, $own )->get_headers();
+		$this->assertSame( 'no-store', $headers['Cache-Control'] );
+		$this->assertSame( '12', $headers['Retry-After'] );
+
+		$other = new WP_REST_Response( array(), 404 );
+		$core  = new WP_REST_Request( 'GET', '/wp/v2/posts' );
+		$this->assertSame( array(), $routes::error_headers( $other, null, $core )->get_headers() );
+	}
+
+	public function test_jsonp_is_disabled_on_own_routes_only() {
+		global $wp;
+		$routes = Nikolareljin\NrStocks\Rest\Routes::class;
+		$saved  = $wp->query_vars;
+
+		$wp->query_vars['rest_route'] = '/NR-Stocks/v1/series';
+		$this->assertFalse( $routes::jsonp_enabled( true ) );
+		$wp->query_vars['rest_route'] = '/wp/v2/posts';
+		$this->assertTrue( $routes::jsonp_enabled( true ) );
+
+		$wp->query_vars = $saved;
+	}
+
+	public function test_cors_decision_uses_site_and_allowlist() {
+		$settings                      = Nikolareljin\NrStocks\Settings::get();
+		$settings['rest_cors_origins'] = array( 'app.example.com' );
+		update_option( NR_STOCKS_OPTION, $settings );
+		$routes = Nikolareljin\NrStocks\Rest\Routes::class;
+
+		$this->assertSame( 'allow', $routes::cors_decision( 'https://app.example.com' ) );
+		$this->assertSame( 'deny', $routes::cors_decision( 'https://unlisted.example' ) );
+		$this->assertSame( 'deny', $routes::cors_decision( 'null' ) );
+		$this->assertSame( 'same', $routes::cors_decision( home_url() ) );
+		$this->assertSame( 'deny', $routes::cors_decision( home_url() . ':8443' ) );
+		$this->assertTrue( $routes::is_own_route( '/nr-stocks/v1/series' ) );
+		$this->assertTrue( $routes::is_own_route( '/NR-Stocks/v1/series' ) );
+		$this->assertTrue( $routes::is_own_route( '/nr-stocks/v1' ) );
+		$this->assertFalse( $routes::is_own_route( '/nr-stocks/v10/series' ) );
+		$this->assertFalse( $routes::is_own_route( '/wp/v2/posts' ) );
+	}
 }

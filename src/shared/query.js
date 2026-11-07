@@ -42,7 +42,9 @@ export function buildRestPath( base, route, params = {} ) {
 		}
 	} );
 	const suffix = query.toString();
-	return `${ cleanBase }/${ route }${ suffix ? `?${ suffix }` : '' }`;
+	// Plain permalinks give a base like /index.php?rest_route=/nr-stocks/v1.
+	const separator = cleanBase.includes( '?' ) ? '&' : '?';
+	return `${ cleanBase }/${ route }${ suffix ? `${ separator }${ suffix }` : '' }`;
 }
 
 /**

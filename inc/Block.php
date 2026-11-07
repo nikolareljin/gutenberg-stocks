@@ -32,6 +32,13 @@ class Block {
 	const STYLE_HANDLE = 'nr-stocks-style';
 
 	/**
+	 * Class on charts saved by the retired 0.x block.
+	 *
+	 * @var string
+	 */
+	const LEGACY_CLASS = 'stock-information-item';
+
+	/**
 	 * Registers the block type on init.
 	 */
 	public static function register() {
@@ -67,6 +74,39 @@ class Block {
 				'ttl'        => isset( $attributes['cacheTtl'] ) ? $attributes['cacheTtl'] : 0,
 			)
 		);
+	}
+
+	/**
+	 * Loads the view script when content holds charts saved by the 0.x block.
+	 *
+	 * @param string $content Post content.
+	 * @return string Unchanged content.
+	 */
+	public static function load_for_legacy_markup( $content ) {
+		static $done = false;
+		if ( $done || is_admin() || ! self::has_legacy_markup( $content ) ) {
+			return $content;
+		}
+		$done = true;
+		self::enqueue_view_assets();
+		if ( wp_script_is( self::VIEW_HANDLE, 'registered' ) ) {
+			wp_add_inline_script(
+				self::VIEW_HANDLE,
+				'window.nrStocks = ' . wp_json_encode( array( 'restBase' => rest_url( NR_STOCKS_REST_NAMESPACE ) ) ) . ';',
+				'before'
+			);
+		}
+		return $content;
+	}
+
+	/**
+	 * Whether content holds charts saved by the 0.x block.
+	 *
+	 * @param string $content Post content.
+	 * @return bool
+	 */
+	public static function has_legacy_markup( $content ) {
+		return is_string( $content ) && false !== strpos( $content, self::LEGACY_CLASS );
 	}
 
 	/**

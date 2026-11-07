@@ -28,43 +28,179 @@ class Rest_Provider {
 	const INTRADAY_INTERVALS = array( '1min', '5min', '15min', '30min', '60min' );
 
 	/**
-	 * ISO codes treated as fiat for forex-vs-crypto detection.
+	 * Currency and metal codes treated as forex, not coins: ISO 4217 plus the
+	 * other codes Frankfurter's /v2/currencies lists as a currency or metal.
 	 *
 	 * @var string[]
 	 */
 	const FIAT = array(
-		'USD',
-		'EUR',
-		'GBP',
-		'JPY',
-		'CHF',
-		'CAD',
-		'AUD',
-		'NZD',
-		'CNY',
-		'HKD',
-		'SGD',
-		'SEK',
-		'NOK',
-		'DKK',
-		'PLN',
-		'CZK',
-		'HUF',
-		'ILS',
-		'MXN',
-		'BRL',
-		'ZAR',
-		'KRW',
-		'INR',
-		'TWD',
-		'THB',
-		'MYR',
-		'IDR',
-		'PHP',
-		'TRY',
 		'AED',
-		'SAR',
+		'AFN',
+		'ALL',
+		'AMD',
+		'ANG',
+		'XCG',
+		'CMD',
+		'CNH',
+		'GGP',
+		'IMP',
+		'JEP',
+		'XDR',
+		'VED',
+		'XAU',
+		'XAG',
+		'XPT',
+		'XPD',
+		'AOA',
+		'ARS',
+		'AUD',
+		'AWG',
+		'AZN',
+		'BAM',
+		'BBD',
+		'BDT',
+		'BGN',
+		'BHD',
+		'BIF',
+		'BMD',
+		'BND',
+		'BOB',
+		'BRL',
+		'BSD',
+		'BTN',
+		'BWP',
+		'BYN',
+		'BZD',
+		'CAD',
+		'CDF',
+		'CHF',
+		'CLP',
+		'CNY',
+		'COP',
+		'CRC',
+		'CUP',
+		'CVE',
+		'CZK',
+		'DJF',
+		'DKK',
+		'DOP',
+		'DZD',
+		'EGP',
+		'ERN',
+		'ETB',
+		'EUR',
+		'FJD',
+		'FKP',
+		'GBP',
+		'GEL',
+		'GHS',
+		'GIP',
+		'GMD',
+		'GNF',
+		'GTQ',
+		'GYD',
+		'HKD',
+		'HNL',
+		'HTG',
+		'HUF',
+		'IDR',
+		'ILS',
+		'INR',
+		'IQD',
+		'IRR',
+		'ISK',
+		'JMD',
+		'JOD',
+		'JPY',
+		'KES',
+		'KGS',
+		'KHR',
+		'KMF',
+		'KPW',
+		'KRW',
+		'KWD',
+		'KYD',
+		'KZT',
+		'LAK',
+		'LBP',
+		'LKR',
+		'LRD',
+		'LSL',
+		'LYD',
+		'MAD',
+		'MDL',
+		'MGA',
+		'MKD',
+		'MMK',
+		'MNT',
+		'MOP',
+		'MRU',
+		'MUR',
+		'MVR',
+		'MWK',
+		'MXN',
+		'MYR',
+		'MZN',
+		'NAD',
+		'NGN',
+		'NIO',
+		'NOK',
+		'NPR',
+		'NZD',
+		'OMR',
+		'PAB',
+		'PEN',
+		'PGK',
+		'PHP',
+		'PKR',
+		'PLN',
+		'PYG',
+		'QAR',
+		'RON',
+		'RSD',
 		'RUB',
+		'RWF',
+		'SAR',
+		'SBD',
+		'SCR',
+		'SDG',
+		'SEK',
+		'SGD',
+		'SHP',
+		'SLE',
+		'SOS',
+		'SRD',
+		'SSP',
+		'STN',
+		'SVC',
+		'SYP',
+		'SZL',
+		'THB',
+		'TJS',
+		'TMT',
+		'TND',
+		'TOP',
+		'TRY',
+		'TTD',
+		'TWD',
+		'TZS',
+		'UAH',
+		'UGX',
+		'USD',
+		'UYU',
+		'UZS',
+		'VES',
+		'VND',
+		'VUV',
+		'WST',
+		'XAF',
+		'XCD',
+		'XOF',
+		'XPF',
+		'YER',
+		'ZAR',
+		'ZMW',
+		'ZWG',
 	);
 
 	/**
@@ -73,6 +209,14 @@ class Rest_Provider {
 	 * @var int
 	 */
 	const MAX_BODY = 2097152;
+
+	/**
+	 * Point counts requested upstream. Results are cached per bucket and sliced
+	 * per request, so nearby ranges share one upstream call.
+	 *
+	 * @var int[]
+	 */
+	const RANGE_BUCKETS = array( 30, 90, 180, 365 );
 
 	/**
 	 * Fetches a normalized time series.
@@ -104,7 +248,11 @@ class Rest_Provider {
 			return self::error( 'missing_key' );
 		}
 
-		$params = self::build_params( $config, $provider_id, $symbol, $asset, $range, $interval, $key );
+		$range       = max( 1, min( 365, (int) $range ) );
+		$fetch_range = self::fetch_range( $range, $op );
+		$interval    = self::canonical_interval( $series, $interval );
+
+		$params = self::build_params( $config, $provider_id, $symbol, $asset, $fetch_range, $interval, $key, $series );
 		if ( isset( $op['base_currency'] ) && $params['from'] !== $op['base_currency'] ) {
 			return self::error( 'unsupported_pair' );
 		}
@@ -116,19 +264,22 @@ class Rest_Provider {
 		$cache_key = Cache::make_key(
 			$provider_id,
 			'series',
-			array( $symbol, $series, $range, $interval, $asset )
+			array( $symbol, $series, $fetch_range, $interval, $asset )
 		);
 		$ttl       = Cache::resolve_ttl( 'series', $ttl_override );
 
 		$result = Cache::get_or_fetch(
 			$cache_key,
 			$ttl,
-			function () use ( $op, $url, $params, $range ) {
-				return self::fetch_rows( $op, $url, $params, $range );
+			function () use ( $op, $url, $params, $fetch_range ) {
+				return self::fetch_rows( $op, $url, $params, $fetch_range );
 			}
 		);
 		if ( empty( $result['ok'] ) ) {
 			return $result;
+		}
+		if ( isset( $result['data'] ) && is_array( $result['data'] ) && count( $result['data'] ) > $range ) {
+			$result['data'] = array_values( array_slice( $result['data'], -$range ) );
 		}
 		$result['meta'] = array(
 			'provider' => $provider_id,
@@ -269,7 +420,10 @@ class Rest_Provider {
 	 */
 	protected static function synthetic_quote( $provider_id, $symbol, $ttl_override ) {
 		$series = self::series( $provider_id, $symbol, 'daily', 2, '', $ttl_override );
-		if ( empty( $series['ok'] ) || empty( $series['data'] ) ) {
+		if ( empty( $series['ok'] ) ) {
+			return $series;
+		}
+		if ( empty( $series['data'] ) ) {
 			return self::error( 'unsupported_series' );
 		}
 		$rows = $series['data'];
@@ -349,6 +503,42 @@ class Rest_Provider {
 	}
 
 	/**
+	 * Smallest fetch bucket that covers a requested range.
+	 *
+	 * An upstream URL that takes no range or date returns the same data for every
+	 * range, so those operations share a single entry.
+	 *
+	 * @param int   $range Requested point count.
+	 * @param array $op    Operation config.
+	 * @return int
+	 */
+	protected static function fetch_range( $range, $op ) {
+		if ( isset( $op['url'] ) && false === strpos( $op['url'], '{range}' ) && false === strpos( $op['url'], '{from_date}' ) ) {
+			return 365;
+		}
+		foreach ( self::RANGE_BUCKETS as $bucket ) {
+			if ( $range <= $bucket ) {
+				return $bucket;
+			}
+		}
+		return 365;
+	}
+
+	/**
+	 * Reduces an interval to the value the upstream request actually uses.
+	 *
+	 * @param string $series   Series id.
+	 * @param string $interval Requested interval.
+	 * @return string Allowed interval for intraday, otherwise empty.
+	 */
+	protected static function canonical_interval( $series, $interval ) {
+		if ( 'intraday' !== $series ) {
+			return '';
+		}
+		return in_array( $interval, self::INTRADAY_INTERVALS, true ) ? $interval : '15min';
+	}
+
+	/**
 	 * Builds template params for a request.
 	 *
 	 * @param array  $config      Provider config.
@@ -358,9 +548,10 @@ class Rest_Provider {
 	 * @param int    $range       Point count.
 	 * @param string $interval    Intraday interval.
 	 * @param string $key         API key (may be empty).
+	 * @param string $series      Series id, which sets the date window per point.
 	 * @return array
 	 */
-	protected static function build_params( $config, $provider_id, $symbol, $asset, $range, $interval, $key ) {
+	protected static function build_params( $config, $provider_id, $symbol, $asset, $range, $interval, $key, $series = 'daily' ) {
 		$from = '';
 		$to   = '';
 		if ( false !== strpos( $symbol, '/' ) ) {
@@ -374,6 +565,13 @@ class Rest_Provider {
 		$range = max( 1, min( 365, (int) $range ) );
 		$now   = time();
 
+		$days_per_point = 3;
+		if ( 'weekly' === $series ) {
+			$days_per_point = 8;
+		} elseif ( 'monthly' === $series ) {
+			$days_per_point = 32;
+		}
+
 		$params = array(
 			'symbol'    => $symbol,
 			'from'      => $from,
@@ -385,13 +583,13 @@ class Rest_Provider {
 			'cur'       => strtolower( '' !== $to ? $to : 'usd' ),
 			'to_date'   => gmdate( 'Y-m-d', $now ),
 			// Extra headroom: weekends/holidays have no rows.
-			'from_date' => gmdate( 'Y-m-d', $now - ( $range * 3 + 5 ) * 86400 ),
+			'from_date' => gmdate( 'Y-m-d', $now - ( $range * $days_per_point + 5 ) * 86400 ),
 		);
 
 		if ( 'coingecko' === $provider_id ) {
 			$ids             = Configs::coingecko_ids();
 			$base            = '' !== $from ? $from : strtoupper( $symbol );
-			$params['cg_id'] = isset( $ids[ $base ] ) ? $ids[ $base ] : strtolower( $symbol );
+			$params['cg_id'] = isset( $ids[ $base ] ) ? $ids[ $base ] : preg_replace( '/[^a-z0-9-]/', '', strtolower( $base ) );
 		}
 		return $params;
 	}
@@ -494,11 +692,20 @@ class Rest_Provider {
 		if ( 'csv' === $op['format'] ) {
 			$table = self::parse_csv( $raw );
 			if ( null === $table || empty( $table ) ) {
-				// Alpha Vantage answers quota errors as JSON even for CSV calls.
-				return self::looks_like_limit( $raw ) ? self::error( 'upstream_limit' ) : self::error( 'parse_error' );
+				return self::csv_failure( $raw );
 			}
 			$rows = self::apply_map( $table, isset( $op['map'] ) ? $op['map'] : array(), $params, isset( $op['transforms'] ) ? $op['transforms'] : array() );
-			$rows = self::normalize_series( $rows );
+			$rows = array_values(
+				array_filter(
+					self::normalize_series( $rows ),
+					function ( $row ) {
+						return null !== $row['close'];
+					}
+				)
+			);
+			if ( empty( $rows ) ) {
+				return self::csv_failure( $raw );
+			}
 			if ( isset( $op['order'] ) && 'desc' === $op['order'] ) {
 				$rows = array_reverse( $rows );
 			}
@@ -563,12 +770,16 @@ class Rest_Provider {
 		if ( 'csv' === $op['format'] ) {
 			$table = self::parse_csv( $body['body'] );
 			if ( null === $table || empty( $table ) ) {
-				return self::looks_like_limit( $body['body'] ) ? self::error( 'upstream_limit' ) : self::error( 'parse_error' );
+				return self::csv_failure( $body['body'] );
 			}
-			$rows = self::apply_map( array( $table[0] ), $map, $params, $transforms );
+			$rows  = self::apply_map( array( $table[0] ), $map, $params, $transforms );
+			$quote = self::normalize_quote( $rows[0] );
+			if ( null === $quote['price'] ) {
+				return self::csv_failure( $body['body'] );
+			}
 			return array(
 				'ok'   => true,
-				'data' => self::normalize_quote( $rows[0] ),
+				'data' => $quote,
 			);
 		}
 
@@ -584,7 +795,8 @@ class Rest_Provider {
 		if ( isset( $op['keyed_by'] ) && isset( $params[ $op['keyed_by'] ] ) ) {
 			$k = $params[ $op['keyed_by'] ];
 			if ( ! isset( $decoded[ $k ] ) || ! is_array( $decoded[ $k ] ) ) {
-				return self::error( 'parse_error' );
+				// A valid answer without the requested row: upstream does not know it.
+				return self::error( 'upstream_error' );
 			}
 			$row = $decoded[ $k ];
 		} elseif ( array_key_exists( 'rows', $op ) && null !== $op['rows'] ) {
@@ -619,6 +831,10 @@ class Rest_Provider {
 		if ( ! is_array( $decoded ) ) {
 			return self::error( 'parse_error' );
 		}
+		$err = self::find_upstream_error( $op, $decoded );
+		if ( null !== $err ) {
+			return self::error( $err );
+		}
 		$map = isset( $op['map'] ) ? $op['map'] : array();
 
 		if ( ! empty( $op['local_filter'] ) ) {
@@ -626,7 +842,15 @@ class Rest_Provider {
 			// the list-of-objects and code->name-map shapes, then filter.
 			$table = array();
 			if ( self::is_list( $decoded ) ) {
-				$table = $decoded;
+				foreach ( $decoded as $row ) {
+					if ( ! is_array( $row ) || ( isset( $row['type'] ) && 'crypto' === $row['type'] ) ) {
+						continue;
+					}
+					if ( ! isset( $row['code'] ) && isset( $row['iso_code'] ) ) {
+						$row['code'] = $row['iso_code'];
+					}
+					$table[] = $row;
+				}
 			} else {
 				foreach ( $decoded as $code => $name ) {
 					$table[] = array(
@@ -635,9 +859,17 @@ class Rest_Provider {
 					);
 				}
 			}
+			$matches = self::filter_local( $table, $map, $query );
+			if ( isset( $op['pair_with'] ) && is_array( $op['pair_with'] ) ) {
+				foreach ( $matches as &$match ) {
+					$quote           = $match['symbol'] === $op['pair_with'][0] ? $op['pair_with'][1] : $op['pair_with'][0];
+					$match['symbol'] = $match['symbol'] . '/' . $quote;
+				}
+				unset( $match );
+			}
 			return array(
 				'ok'   => true,
-				'data' => self::filter_local( $table, $map, $query ),
+				'data' => $matches,
 			);
 		}
 
@@ -735,7 +967,11 @@ class Rest_Provider {
 		}
 		$code = (int) wp_remote_retrieve_response_code( $response );
 		if ( 200 !== $code ) {
-			return self::error( 429 === $code ? 'upstream_limit' : 'http_error' );
+			if ( 429 === $code ) {
+				return self::error( 'upstream_limit' );
+			}
+			// Upstream rejected this request, for example an unknown symbol.
+			return self::error( in_array( $code, array( 400, 404, 422 ), true ) ? 'upstream_error' : 'http_error' );
 		}
 		return array(
 			'ok'   => true,
@@ -750,7 +986,12 @@ class Rest_Provider {
 	 * @return array|null
 	 */
 	public static function parse_csv( $text ) {
-		$lines = preg_split( "/\r\n|\n|\r/", trim( $text ) );
+		$text = trim( $text );
+		// Alpha Vantage answers errors and quota notes as JSON on CSV calls.
+		if ( '' === $text || '{' === $text[0] || '[' === $text[0] ) {
+			return null;
+		}
+		$lines = preg_split( "/\r\n|\n|\r/", $text );
 		if ( ! is_array( $lines ) || count( $lines ) < 2 ) {
 			return null;
 		}
@@ -826,7 +1067,7 @@ class Rest_Provider {
 	 * Converts [timestamp, value] pairs (CoinGecko) into rows.
 	 *
 	 * @param array $pairs Pair rows.
-	 * @param array $spec  pairs spec (ts unit, value field).
+	 * @param array $spec  pairs spec (ts unit, value field, per_day).
 	 * @return array
 	 */
 	protected static function pairs_to_rows( $pairs, $spec ) {
@@ -841,12 +1082,23 @@ class Rest_Provider {
 			if ( $ms ) {
 				$ts = (int) floor( $ts / 1000 );
 			}
-			$rows[] = array(
-				'date' => gmdate( 'Y-m-d H:i:s', $ts ),
-				$field => (float) $pair[1],
-			);
+			if ( ! empty( $spec['per_day'] ) ) {
+				// Input is oldest first, so each day keeps its latest price. A
+				// 00:00 point is the previous day's close, which is how longer
+				// ranges report every day.
+				$day          = gmdate( 'Y-m-d', $ts - 1 );
+				$rows[ $day ] = array(
+					'date' => $day,
+					$field => (float) $pair[1],
+				);
+			} else {
+				$rows[] = array(
+					'date' => gmdate( 'Y-m-d H:i:s', $ts ),
+					$field => (float) $pair[1],
+				);
+			}
 		}
-		return $rows;
+		return array_values( $rows );
 	}
 
 	/**
@@ -954,7 +1206,9 @@ class Rest_Provider {
 		foreach ( $op['error_paths'] as $path ) {
 			$value = self::dot_get( $decoded, $path );
 			if ( is_string( $value ) && '' !== $value ) {
-				if ( false !== stripos( $value, 'rate' ) || false !== stripos( $value, 'limit' ) || false !== stripos( $value, 'premium' ) ) {
+				// Alpha Vantage sends quota and burst notices under these keys, in
+				// wording that changes. Only "Error Message" rejects a request.
+				if ( 'Note' === $path || 'Information' === $path || self::looks_like_limit( $value ) ) {
 					return 'upstream_limit';
 				}
 				return 'upstream_error';
@@ -964,13 +1218,31 @@ class Rest_Provider {
 	}
 
 	/**
+	 * Classifies a CSV call whose body held no usable rows.
+	 *
+	 * @param string $body Raw body.
+	 * @return array Error envelope.
+	 */
+	protected static function csv_failure( $body ) {
+		$decoded = json_decode( $body, true );
+		if ( is_array( $decoded ) ) {
+			$error = self::find_upstream_error(
+				array( 'error_paths' => array( 'Note', 'Information', 'Error Message' ) ),
+				$decoded
+			);
+			return self::error( null !== $error ? $error : 'parse_error' );
+		}
+		return self::error( self::looks_like_limit( $body ) ? 'upstream_limit' : 'parse_error' );
+	}
+
+	/**
 	 * Heuristic for Alpha Vantage text/JSON limit notes on CSV calls.
 	 *
 	 * @param string $body Raw body.
 	 * @return bool
 	 */
 	protected static function looks_like_limit( $body ) {
-		return (bool) preg_match( '/rate|limit|premium|call frequency/i', substr( $body, 0, 500 ) );
+		return (bool) preg_match( '/rate|limit|premium|call frequency|credit|per second|per minute/i', substr( $body, 0, 500 ) );
 	}
 
 	/**

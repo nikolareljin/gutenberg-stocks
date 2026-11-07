@@ -33,11 +33,42 @@ class Cache {
 	const LOCK_TTL = 15;
 
 	/**
+	 * How long a request waits for another request's fetch, in milliseconds.
+	 * Long enough to outlast the 12-second upstream timeout.
+	 *
+	 * @var int
+	 */
+	const LOCK_WAIT_MS = 13000;
+
+	/**
+	 * How often a waiting request checks for the result, in milliseconds.
+	 *
+	 * @var int
+	 */
+	const LOCK_POLL_MS = 250;
+
+	/**
 	 * How long upstream errors are cached, in seconds.
 	 *
 	 * @var int
 	 */
 	const NEGATIVE_TTL = 60;
+
+	/**
+	 * How long a request upstream rejected is remembered, in seconds, so a bad
+	 * or delisted symbol on a page does not spend quota on every retry.
+	 *
+	 * @var int
+	 */
+	const REJECTED_TTL = 3600;
+
+	/**
+	 * How long an entry outlives its TTL, in seconds, for use when a refresh
+	 * cannot run or fails. Fresh reads still honor the TTL.
+	 *
+	 * @var int
+	 */
+	const STALE_GRACE = 3600;
 
 	/**
 	 * Option holding the key index used to purge under object caching.
@@ -56,6 +87,49 @@ class Cache {
 		'quote'  => 60,
 		'search' => 3600,
 	);
+
+	/**
+	 * Optional check that may refuse an upstream fetch on a cache miss.
+	 *
+	 * @var callable|null
+	 */
+	protected static $fetch_guard = null;
+
+	/**
+	 * Sets or clears the check run before an upstream fetch.
+	 *
+	 * @param callable|null $guard Returns false to refuse the fetch.
+	 */
+	public static function set_fetch_guard( $guard ) {
+		self::$fetch_guard = $guard;
+	}
+
+	/**
+	 * Counts one event in a window that keeps its original expiry.
+	 *
+	 * @param string $key    Transient key.
+	 * @param int    $limit  Events allowed per window.
+	 * @param int    $window Window length in seconds.
+	 * @return int 0 when allowed, otherwise seconds until the window resets.
+	 */
+	public static function throttle( $key, $limit, $window = 60 ) {
+		// Other requests update this counter while a slow request is running.
+		self::forget_local_copy( $key );
+		$now   = time();
+		$state = get_transient( $key );
+		if ( ! is_array( $state ) || ! isset( $state['count'], $state['reset'] ) || (int) $state['reset'] <= $now ) {
+			$state = array(
+				'count' => 0,
+				'reset' => $now + (int) $window,
+			);
+		}
+		if ( (int) $state['count'] >= (int) $limit ) {
+			return max( 1, (int) $state['reset'] - $now );
+		}
+		++$state['count'];
+		set_transient( $key, $state, max( 1, (int) $state['reset'] - $now ) );
+		return 0;
+	}
 
 	/**
 	 * Builds a transient key. Stays well under the 172-character limit.
@@ -121,13 +195,21 @@ class Cache {
 		if ( $ttl <= 0 ) {
 			return;
 		}
+		// Entries are shared across TTLs: a short-TTL refresh must not shorten
+		// how long a longer-TTL caller can keep using the entry.
+		$lifetime = $ttl + self::STALE_GRACE;
+		$prior    = self::get( $key );
+		if ( null !== $prior && isset( $prior['expires_at'] ) ) {
+			$lifetime = max( $lifetime, (int) $prior['expires_at'] - time() );
+		}
 		set_transient(
 			$key,
 			array(
 				'data'       => $data,
 				'fetched_at' => time(),
+				'expires_at' => time() + $lifetime,
 			),
-			$ttl
+			$lifetime
 		);
 		self::index_add( $key );
 	}
@@ -147,36 +229,79 @@ class Cache {
 	public static function get_or_fetch( $key, $ttl, $fetcher ) {
 		$ttl = (int) $ttl;
 		if ( $ttl <= 0 ) {
+			if ( ! self::fetch_allowed() ) {
+				return self::failure( 'upstream_budget' );
+			}
 			$result               = call_user_func( $fetcher );
 			$result['cached']     = false;
 			$result['fetched_at'] = time();
 			return $result;
 		}
 
-		$hit = self::get( $key );
-		if ( null !== $hit && isset( $hit['data']['ok'] ) ) {
-			$stored               = $hit['data'];
-			$stored['cached']     = true;
-			$stored['fetched_at'] = isset( $hit['fetched_at'] ) ? (int) $hit['fetched_at'] : time();
-			return $stored;
+		// Entries are shared across TTLs, so each caller applies its own limit.
+		$hit = self::read_response( $key );
+		if ( null !== $hit && ( empty( $hit['ok'] ) || $hit['fetched_at'] + $ttl > time() ) ) {
+			return $hit;
+		}
+		// Past this caller's TTL but still valid: better than any failure below.
+		$stale = $hit;
+		if ( null !== $stale && false !== get_transient( $key . '_retry' ) ) {
+			// The last refresh failed moments ago; do not hit upstream again yet.
+			return $stale;
 		}
 
 		if ( ! self::acquire_lock( $key ) ) {
-			// Another request is fetching; give it a moment, then fetch anyway.
-			sleep( 1 );
-			$retry = self::get( $key );
-			if ( null !== $retry && isset( $retry['data']['ok'] ) && ! empty( $retry['data']['ok'] ) ) {
-				$stored               = $retry['data'];
-				$stored['cached']     = true;
-				$stored['fetched_at'] = isset( $retry['fetched_at'] ) ? (int) $retry['fetched_at'] : time();
-				return $stored;
+			if ( null !== $stale ) {
+				// Someone is already refreshing and there is data to serve now.
+				return $stale;
 			}
+			// Another request owns the fetch: wait for its result instead of
+			// adding a second upstream call for the same key.
+			/**
+			 * Filters how long a request waits for another request's fetch.
+			 *
+			 * @param int $wait_ms Milliseconds to wait.
+			 */
+			$wait_ms = (int) apply_filters( 'nr_stocks_lock_wait_ms', self::LOCK_WAIT_MS );
+			$waited  = 0;
+			while ( $waited < $wait_ms ) {
+				usleep( self::LOCK_POLL_MS * 1000 );
+				$waited += self::LOCK_POLL_MS;
+				self::forget_local_copy( $key );
+				$hit = self::read_response( $key );
+				if ( null !== $hit && ( empty( $hit['ok'] ) || $hit['fetched_at'] + $ttl > time() ) ) {
+					return $hit;
+				}
+				if ( ! self::lock_held( $key ) ) {
+					// The holder may have stored its result just before releasing.
+					self::forget_local_copy( $key );
+					$hit = self::read_response( $key );
+					if ( null !== $hit && ( empty( $hit['ok'] ) || $hit['fetched_at'] + $ttl > time() ) ) {
+						return $hit;
+					}
+					break;
+				}
+			}
+			return self::failure( 'busy' );
+		}
+
+		if ( ! self::fetch_allowed() ) {
+			self::release_lock( $key );
+			return null !== $stale ? $stale : self::failure( 'upstream_budget' );
 		}
 
 		$result = call_user_func( $fetcher );
-		self::release_lock( $key );
 
+		// The lock is released only after the result is stored, so a request
+		// arriving in between cannot start a second fetch.
 		if ( ! is_array( $result ) || empty( $result['ok'] ) ) {
+			if ( null !== $stale ) {
+				// Keep the valid entry instead of replacing it with an error, and
+				// back off like the negative cache does.
+				set_transient( $key . '_retry', 1, self::NEGATIVE_TTL );
+				self::release_lock( $key );
+				return $stale;
+			}
 			$error = is_array( $result ) && isset( $result['error'] ) ? (string) $result['error'] : 'fetch_failed';
 			set_transient(
 				$key,
@@ -187,23 +312,79 @@ class Cache {
 					),
 					'fetched_at' => time(),
 				),
-				self::NEGATIVE_TTL
+				'upstream_error' === $error ? self::REJECTED_TTL : self::NEGATIVE_TTL
 			);
 			self::index_add( $key );
-			return array(
-				'ok'         => false,
-				'error'      => $error,
-				'cached'     => false,
-				'fetched_at' => time(),
-			);
+			self::release_lock( $key );
+			return self::failure( $error );
 		}
 
 		$stored = $result;
 		unset( $stored['cached'], $stored['fetched_at'] );
 		self::set( $key, $stored, $ttl );
+		self::release_lock( $key );
 		$result['cached']     = false;
 		$result['fetched_at'] = time();
 		return $result;
+	}
+
+	/**
+	 * Drops this request's cached view of an entry so the next read is fresh.
+	 *
+	 * Without an object cache, a missed read is remembered in `notoptions` for
+	 * the rest of the request, which would hide another process's result.
+	 *
+	 * @param string $key Cache key.
+	 */
+	protected static function forget_local_copy( $key ) {
+		if ( wp_using_ext_object_cache() ) {
+			wp_cache_get( $key, 'transient', true );
+			return;
+		}
+		wp_cache_delete( 'notoptions', 'options' );
+		wp_cache_delete( '_transient_' . $key, 'options' );
+		wp_cache_delete( '_transient_timeout_' . $key, 'options' );
+	}
+
+	/**
+	 * Reads a cached success or failure in response form.
+	 *
+	 * @param string $key Cache key.
+	 * @return array|null
+	 */
+	protected static function read_response( $key ) {
+		$entry = self::get( $key );
+		if ( null === $entry || ! isset( $entry['data']['ok'] ) ) {
+			return null;
+		}
+		$stored               = $entry['data'];
+		$stored['cached']     = true;
+		$stored['fetched_at'] = isset( $entry['fetched_at'] ) ? (int) $entry['fetched_at'] : time();
+		return $stored;
+	}
+
+	/**
+	 * Whether the current request may call upstream.
+	 *
+	 * @return bool
+	 */
+	protected static function fetch_allowed() {
+		return null === self::$fetch_guard || false !== call_user_func( self::$fetch_guard );
+	}
+
+	/**
+	 * Builds an uncached failure response.
+	 *
+	 * @param string $error Error code.
+	 * @return array
+	 */
+	protected static function failure( $error ) {
+		return array(
+			'ok'         => false,
+			'error'      => $error,
+			'cached'     => false,
+			'fetched_at' => time(),
+		);
 	}
 
 	/**
@@ -268,6 +449,21 @@ class Cache {
 		}
 		set_transient( $lock, 1, self::LOCK_TTL );
 		return true;
+	}
+
+	/**
+	 * Whether another request still holds the fetch mutex.
+	 *
+	 * @param string $key Cache key.
+	 * @return bool
+	 */
+	protected static function lock_held( $key ) {
+		$lock = $key . '_lock';
+		if ( wp_using_ext_object_cache() ) {
+			return false !== wp_cache_get( $lock, '', true );
+		}
+		self::forget_local_copy( $lock );
+		return false !== get_transient( $lock );
 	}
 
 	/**

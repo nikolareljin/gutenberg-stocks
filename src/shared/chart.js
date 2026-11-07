@@ -24,6 +24,9 @@ const formatTime = timeFormat( '%H:%M' );
 const isFiniteNumber = ( value ) =>
 	typeof value === 'number' && Number.isFinite( value );
 
+const seriesColor = ( index, baseColor ) =>
+	index === 0 ? baseColor || PALETTE[ 0 ] : PALETTE[ index % PALETTE.length ];
+
 export const escapeXml = ( value ) =>
 	String( value ).replace( /[&<>"']/g, ( char ) => {
 		switch ( char ) {
@@ -66,7 +69,9 @@ export function normalizeRows( rows ) {
 			return;
 		}
 		const date = toDate( row.date );
-		const close = Number( row.close );
+		// Number( null ) and Number( '' ) are 0, which is not a price.
+		const close =
+			row.close === null || row.close === '' ? NaN : Number( row.close );
 		if ( ! date || ! isFiniteNumber( close ) ) {
 			return;
 		}
@@ -95,6 +100,63 @@ export function toPercentChange( rows ) {
 		value: ( ( row.close - first ) / Math.abs( first ) ) * 100,
 	} ) );
 }
+
+/**
+ * Formats evenly spaced axis values. Precision follows the tick step, so rounding
+ * moves a label by at most a tenth of a step; the style is the first that fits
+ * the margin.
+ *
+ * @param {number[]} values Tick values, evenly spaced.
+ * @return {string[]} Labels, in the same order.
+ */
+const formatAxisLabels = ( values ) => {
+	const maxLength = 9;
+	const step = Math.abs( values[ 1 ] - values[ 0 ] );
+	// Decimals needed for a value measured in `unit`, never below zero.
+	const decimalsFor = ( unit = 1 ) =>
+		Math.max( 0, Math.ceil( -Math.log10( ( 0.2 * step ) / unit ) ) );
+	const plain = ( useGrouping ) => ( value ) => {
+		const digits = Math.min( decimalsFor(), 20 );
+		return value.toLocaleString( 'en-US', {
+			useGrouping,
+			minimumFractionDigits: digits,
+			maximumFractionDigits: digits,
+		} );
+	};
+	const largest = Math.max( ...values.map( Math.abs ) );
+	const compactUnit =
+		[ 1e12, 1e9, 1e6, 1e3 ].find( ( unit ) => largest >= unit ) || 1;
+	const compact = ( value ) => {
+		const digits = Math.min( decimalsFor( compactUnit ), 20 );
+		return value.toLocaleString( 'en-US', {
+			notation: 'compact',
+			minimumFractionDigits: digits,
+			maximumFractionDigits: digits,
+		} );
+	};
+	const exponential = ( value ) =>
+		value.toExponential(
+			Math.min(
+				Math.max(
+					1,
+					Math.ceil( Math.log10( largest / ( 0.2 * step ) ) )
+				),
+				20
+			)
+		);
+	const styles = [ plain( true ), compact, plain( false ), exponential ];
+	for ( const style of styles ) {
+		const labels = values.map( style );
+		if (
+			new Set( labels ).size === labels.length &&
+			labels.every( ( label ) => label.length <= maxLength )
+		) {
+			return labels;
+		}
+	}
+	// Nothing fits: an accurate label beats a short wrong one.
+	return values.map( plain( false ) );
+};
 
 /**
  * Builds scales, paths, and ticks for one or more series.
@@ -177,25 +239,25 @@ export function buildChartModel( seriesList, opts = {} ) {
 		.y1( ( row ) => yScale( row.value ) )
 		.curve( curveMonotoneX );
 
-	const baseColor = opts.color || PALETTE[ 0 ];
 	const paths = withValues.map( ( entry, index ) => ( {
 		symbol: entry.symbol,
-		color: index === 0 ? baseColor : PALETTE[ index % PALETTE.length ],
+		color: seriesColor( index, opts.color ),
 		d: line( entry.rows ) || '',
 		area: index === 0 ? area( entry.rows ) || '' : '',
 		last: entry.rows[ entry.rows.length - 1 ],
 	} ) );
 
-	const yTicks = [ 0, 1, 2, 3 ].map( ( step ) => {
-		const value = min + ( ( max - min ) * step ) / 3;
-		return {
-			value,
-			y: yScale( value ),
-			label: normalized
-				? `${ value >= 0 ? '+' : '' }${ value.toFixed( 2 ) }%`
-				: value.toLocaleString( 'en-US', { maximumFractionDigits: 2 } ),
-		};
-	} );
+	const tickValues = [ 0, 1, 2, 3 ].map(
+		( step ) => min + ( ( max - min ) * step ) / 3
+	);
+	const plainLabels = formatAxisLabels( tickValues );
+	const yTicks = tickValues.map( ( value, index ) => ( {
+		value,
+		y: yScale( value ),
+		label: normalized
+			? `${ value >= 0 ? '+' : '' }${ value.toFixed( 2 ) }%`
+			: plainLabels[ index ],
+	} ) );
 
 	const spanMs = Math.max( ...allDates ) - Math.min( ...allDates );
 	const intraday = spanMs < 3 * 86400000;
@@ -228,8 +290,10 @@ export function buildChartModel( seriesList, opts = {} ) {
 export function renderChartSVG( seriesList, opts = {} ) {
 	const model = buildChartModel( seriesList, opts );
 	const { width, height, margin } = model;
+	const labels = opts.labels || {};
 	if ( ! model.paths.length ) {
-		return `<svg viewBox="0 0 ${ width } ${ height }" role="img" aria-label="No data"><text x="${ width / 2 }" y="${ height / 2 }" text-anchor="middle" fill="#888">No data</text></svg>`;
+		const noDataLabel = escapeXml( labels.noData || 'No data' );
+		return `<svg viewBox="0 0 ${ width } ${ height }" role="img" aria-label="${ noDataLabel }"><text x="${ width / 2 }" y="${ height / 2 }" text-anchor="middle" fill="#888">${ noDataLabel }</text></svg>`;
 	}
 
 	const grid = model.yTicks
@@ -240,8 +304,8 @@ export function renderChartSVG( seriesList, opts = {} ) {
 		.join( '' );
 	const xLabels = model.xTicks
 		.map(
-			( tick ) =>
-				`<text x="${ tick.x }" y="${ height - margin.top - margin.bottom + 18 }" text-anchor="middle" font-size="11" fill="#666">${ escapeXml( tick.label ) }</text>`
+			( tick, index ) =>
+				`<text x="${ tick.x }" y="${ height - margin.top - margin.bottom + 18 }" text-anchor="${ index > 0 && index === model.xTicks.length - 1 ? 'end' : 'middle' }" font-size="11" fill="#666">${ escapeXml( tick.label ) }</text>`
 		)
 		.join( '' );
 	const series = model.paths
@@ -255,7 +319,77 @@ export function renderChartSVG( seriesList, opts = {} ) {
 				`</g>`
 		)
 		.join( '' );
-	return `<svg viewBox="0 0 ${ width } ${ height }" role="img" aria-label="Price chart"><g transform="translate(${ margin.left },${ margin.top })">${ grid }${ xLabels }${ series }</g></svg>`;
+	const chartLabel = escapeXml( labels.chart || 'Price chart' );
+	return `<svg viewBox="0 0 ${ width } ${ height }" role="img" aria-label="${ chartLabel }"><g transform="translate(${ margin.left },${ margin.top })">${ grid }${ xLabels }${ series }</g></svg>`;
+}
+
+/**
+ * Renders a color key for comparison charts (nothing for a single series).
+ *
+ * @param {Array}  seriesList List of { symbol, rows }, as given to the chart.
+ * @param {Object} opts       { color }.
+ * @return {string} HTML.
+ */
+export function renderLegendHTML( seriesList, opts = {} ) {
+	// From the model, so a series the chart dropped cannot shift the colors.
+	const { paths } = buildChartModel( seriesList, opts );
+	if ( paths.length < 2 ) {
+		return '';
+	}
+	const items = paths
+		.map(
+			( { symbol, color } ) =>
+				`<li><span class="nr-stocks-legend__swatch" style="background:${ escapeXml( color ) }"></span>${ escapeXml( symbol ) }</li>`
+		)
+		.join( '' );
+	return `<ul class="nr-stocks-legend">${ items }</ul>`;
+}
+
+const formatQuoteNumber = ( value ) => {
+	const number = Number( value );
+	return number.toLocaleString(
+		'en-US',
+		Math.abs( number ) < 1 && number !== 0
+			? { maximumSignificantDigits: 4 }
+			: { maximumFractionDigits: 4 }
+	);
+};
+
+/**
+ * Renders the quote panel from baked per-symbol quotes.
+ *
+ * @param {Array} quotes List of { symbol, quote }.
+ * @return {string} HTML, empty when no quote has a price.
+ */
+export function renderQuotesHTML( quotes ) {
+	if ( ! Array.isArray( quotes ) ) {
+		return '';
+	}
+	const items = quotes
+		.filter(
+			( { quote } ) =>
+				quote && quote.price !== null && isFiniteNumber( +quote.price )
+		)
+		.map( ( { symbol, quote } ) => {
+			const percent = Number( quote.change_percent );
+			const hasChange =
+				quote.change_percent !== null &&
+				quote.change_percent !== undefined &&
+				Number.isFinite( percent );
+			const direction = percent < 0 ? 'down' : 'up';
+			const change = hasChange
+				? `<span class="nr-stocks-quote__change is-${ direction }">${ percent >= 0 ? '+' : '' }${ percent.toFixed( 2 ) }%</span>`
+				: '';
+			const currency = quote.currency
+				? ` ${ escapeXml( quote.currency ) }`
+				: '';
+			const date = quote.date
+				? ` <span class="nr-stocks-quote__date">${ escapeXml( String( quote.date ).slice( 0, 10 ) ) }</span>`
+				: '';
+			return `<li class="nr-stocks-quote"><span class="nr-stocks-quote__symbol">${ escapeXml( symbol ) }</span> <span class="nr-stocks-quote__price">${ formatQuoteNumber( quote.price ) }${ currency }</span> ${ change }${ date }</li>`;
+		} )
+		.join( '' );
+	return items ? `<ul class="nr-stocks-quotes">${ items }</ul>` : '';
 }
 
 /**

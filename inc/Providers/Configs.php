@@ -92,7 +92,7 @@ class Configs {
 					),
 					array(
 						'assets'      => array( 'crypto' ),
-						'url'         => '{host}/query?function=DIGITAL_CURRENCY_DAILY&symbol={symbol}&market={market}&apikey={key}&datatype=csv',
+						'url'         => '{host}/query?function=DIGITAL_CURRENCY_DAILY&symbol={from}&market={market}&apikey={key}&datatype=csv',
 						'format'      => 'csv',
 						'order'       => 'desc',
 						'map'         => $csv_rows,
@@ -151,17 +151,18 @@ class Configs {
 				'error_paths' => array( 'Note', 'Information', 'Error Message' ),
 			),
 			'search'      => array(
-				'url'    => '{host}/query?function=SYMBOL_SEARCH&keywords={q}&apikey={key}',
-				'format' => 'json',
-				'rows'   => 'bestMatches',
-				'map'    => array(
+				'url'         => '{host}/query?function=SYMBOL_SEARCH&keywords={q}&apikey={key}',
+				'format'      => 'json',
+				'rows'        => 'bestMatches',
+				'error_paths' => array( 'Note', 'Information', 'Error Message' ),
+				'map'         => array(
 					'symbol'   => '1. symbol',
 					'name'     => '2. name',
 					'type'     => '3. type',
 					'currency' => '8. currency',
 				),
 			),
-			'rate_note'   => 'Free: 25 requests/day. Unlimited for verified open-source projects.',
+			'rate_note'   => 'Free: 25 requests/day and the latest 100 points per series. Unlimited for verified open-source projects.',
 		);
 	}
 
@@ -228,10 +229,11 @@ class Configs {
 				'error_paths' => array( 'message' ),
 			),
 			'search'      => array(
-				'url'    => '{host}/symbol_search?symbol={q}&apikey={key}',
-				'format' => 'json',
-				'rows'   => 'data',
-				'map'    => array(
+				'url'         => '{host}/symbol_search?symbol={q}&apikey={key}',
+				'format'      => 'json',
+				'rows'        => 'data',
+				'error_paths' => array( 'message' ),
+				'map'         => array(
 					'symbol'   => 'symbol',
 					'name'     => 'instrument_name',
 					'exchange' => 'exchange',
@@ -304,6 +306,8 @@ class Configs {
 				'url'          => '{host}/v2/currencies',
 				'format'       => 'json',
 				'local_filter' => true,
+				// Currency codes alone are not chartable: results are offered as pairs.
+				'pair_with'    => array( 'USD', 'EUR' ),
 				'map'          => array(
 					'symbol' => 'code',
 					'name'   => 'name',
@@ -322,7 +326,7 @@ class Configs {
 		return array(
 			'id'          => 'coingecko',
 			'label'       => 'CoinGecko (crypto, no key)',
-			'description' => 'Crypto spot prices and history. No key at low limits; a free key raises them.',
+			'description' => 'Crypto spot prices and history. Keyless, with rate limits.',
 			'needs_key'   => false,
 			'key_setting' => 'coingecko',
 			'key_url'     => 'https://docs.coingecko.com/',
@@ -334,9 +338,11 @@ class Configs {
 						'url'    => '{host}/api/v3/coins/{cg_id}/market_chart?vs_currency={cur}&days={range}',
 						'format' => 'json',
 						'pairs'  => array(
-							'path'  => 'prices',
-							'ts'    => 'ms',
-							'value' => 'close',
+							'path'    => 'prices',
+							'ts'      => 'ms',
+							'value'   => 'close',
+							// Up to 90 days the API answers with hourly rows.
+							'per_day' => true,
 						),
 						'order'  => 'asc',
 					),
@@ -362,7 +368,7 @@ class Configs {
 					'name'   => 'name',
 				),
 			),
-			'rate_note'   => 'Free demo with rate limits; an optional key raises them.',
+			'rate_note'   => 'Free demo with rate limits.',
 		);
 	}
 

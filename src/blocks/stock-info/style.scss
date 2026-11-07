@@ -12,6 +12,41 @@
 	display: none;
 }
 
+.nr-stocks-legend,
+.nr-stocks-quotes {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.25em 1em;
+	list-style: none;
+	margin: 0.5em 0 0;
+	padding: 0;
+}
+
+.nr-stocks-legend__swatch {
+	display: inline-block;
+	width: 0.75em;
+	height: 0.75em;
+	margin-right: 0.35em;
+	border-radius: 2px;
+}
+
+.nr-stocks-quote__symbol {
+	font-weight: 600;
+}
+
+.nr-stocks-quote__date {
+	color: #555;
+	font-size: 0.85em;
+}
+
+.nr-stocks-quote__change.is-up {
+	color: #1e7b34;
+}
+
+.nr-stocks-quote__change.is-down {
+	color: #cc1818;
+}
+
 .nr-stocks-fallback {
 	list-style: disc;
 	margin: 0.5em 0 0 1.25em;

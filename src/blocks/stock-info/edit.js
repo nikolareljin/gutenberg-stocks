@@ -2,7 +2,7 @@
  * Stock Chart block editor: symbol search, provider controls, live preview.
  */
 import { useEffect, useRef, useState } from '@wordpress/element';
-import { __ } from '@wordpress/i18n';
+import { __, sprintf } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
 import {
 	Button,
@@ -19,11 +19,11 @@ import './editor.scss';
 import { renderChartSVG } from '../../shared/chart';
 import { sanitizeSymbol } from '../../shared/query';
 
-const SERIES_OPTIONS = [
-	{ label: 'Daily', value: 'daily' },
-	{ label: 'Weekly', value: 'weekly' },
-	{ label: 'Monthly', value: 'monthly' },
-	{ label: 'Intraday', value: 'intraday' },
+const getSeriesOptions = () => [
+	{ label: __( 'Daily', 'nr-stocks' ), value: 'daily' },
+	{ label: __( 'Weekly', 'nr-stocks' ), value: 'weekly' },
+	{ label: __( 'Monthly', 'nr-stocks' ), value: 'monthly' },
+	{ label: __( 'Intraday', 'nr-stocks' ), value: 'intraday' },
 ];
 
 const restPath = ( route, params = {} ) => {
@@ -52,11 +52,13 @@ export default function Edit( { attributes, setAttributes } ) {
 	const blockProps = useBlockProps( { className: 'nr-stocks-editor' } );
 
 	const [ providers, setProviders ] = useState( [] );
+	const [ defaultProvider, setDefaultProvider ] = useState( '' );
 	const [ query, setQuery ] = useState( '' );
 	const [ suggestions, setSuggestions ] = useState( [] );
 	const [ preview, setPreview ] = useState( null );
 	const [ previewState, setPreviewState ] = useState( 'idle' );
-	const requestId = useRef( 0 );
+	const searchRequestId = useRef( 0 );
+	const previewRequestId = useRef( 0 );
 	const debouncedQuery = useDebouncedValue( query, 300 );
 
 	useEffect( () => {
@@ -65,6 +67,7 @@ export default function Edit( { attributes, setAttributes } ) {
 			.then( ( res ) => {
 				if ( ! cancelled && res && Array.isArray( res.data ) ) {
 					setProviders( res.data );
+					setDefaultProvider( res.meta?.default || '' );
 				}
 			} )
 			.catch( () => {} );
@@ -74,17 +77,18 @@ export default function Edit( { attributes, setAttributes } ) {
 	}, [] );
 
 	useEffect( () => {
+		// Bumped before the early return so a pending response cannot land later.
+		const id = ++searchRequestId.current;
 		if ( debouncedQuery.trim().length < 2 ) {
 			setSuggestions( [] );
 			return;
 		}
-		const id = ++requestId.current;
 		apiFetch( {
 			path: restPath( 'search', { provider, q: debouncedQuery.trim() } ),
 		} )
 			.then( ( res ) => {
 				if (
-					id === requestId.current &&
+					id === searchRequestId.current &&
 					res &&
 					Array.isArray( res.data )
 				) {
@@ -92,19 +96,20 @@ export default function Edit( { attributes, setAttributes } ) {
 				}
 			} )
 			.catch( () => {
-				if ( id === requestId.current ) {
+				if ( id === searchRequestId.current ) {
 					setSuggestions( [] );
 				}
 			} );
 	}, [ debouncedQuery, provider ] );
 
 	useEffect( () => {
+		// Bumped before the early return so a pending response cannot land later.
+		const id = ++previewRequestId.current;
 		if ( ! symbols.length ) {
 			setPreview( null );
 			setPreviewState( 'idle' );
 			return;
 		}
-		const id = ++requestId.current;
 		setPreviewState( 'loading' );
 		apiFetch( {
 			path: restPath( 'series', {
@@ -115,7 +120,7 @@ export default function Edit( { attributes, setAttributes } ) {
 			} ),
 		} )
 			.then( ( res ) => {
-				if ( id !== requestId.current ) {
+				if ( id !== previewRequestId.current ) {
 					return;
 				}
 				if ( res && res.data ) {
@@ -126,7 +131,7 @@ export default function Edit( { attributes, setAttributes } ) {
 				}
 			} )
 			.catch( () => {
-				if ( id === requestId.current ) {
+				if ( id === previewRequestId.current ) {
 					setPreviewState( 'error' );
 				}
 			} );
@@ -146,9 +151,11 @@ export default function Edit( { attributes, setAttributes } ) {
 		setAttributes( { symbols: symbols.filter( ( s ) => s !== target ) } );
 	};
 
-	const activeProvider = providers.find( ( p ) => p.id === provider );
-	const seriesOptions = SERIES_OPTIONS.filter( ( option ) => {
-		if ( ! provider || ! activeProvider ) {
+	const activeProvider = providers.find(
+		( p ) => p.id === ( provider || defaultProvider )
+	);
+	const seriesOptions = getSeriesOptions().filter( ( option ) => {
+		if ( ! activeProvider ) {
 			return true;
 		}
 		return Object.prototype.hasOwnProperty.call(
@@ -168,6 +175,13 @@ export default function Edit( { attributes, setAttributes } ) {
 					} )
 					.filter( Boolean )
 			: [];
+	const failedSymbols =
+		previewState === 'ready' && preview
+			? symbols.filter( ( symbol ) => {
+					const entry = preview[ symbol ];
+					return ! entry || ! entry.ok;
+				} )
+			: [];
 
 	return (
 		<div { ...blockProps }>
@@ -184,14 +198,33 @@ export default function Edit( { attributes, setAttributes } ) {
 							...providers.map( ( p ) => ( {
 								label:
 									p.needs_key && ! p.has_key
-										? `${ p.label } (needs key)`
+										? sprintf(
+												/* translators: %s: provider label. */
+												__(
+													'%s (needs key)',
+													'nr-stocks'
+												),
+												p.label
+											)
 										: p.label,
 								value: p.id,
 							} ) ),
 						] }
-						onChange={ ( value ) =>
-							setAttributes( { provider: value } )
-						}
+						onChange={ ( value ) => {
+							const next = providers.find(
+								( p ) => p.id === ( value || defaultProvider )
+							);
+							const keepsSeries =
+								! next ||
+								Object.prototype.hasOwnProperty.call(
+									next.series || {},
+									series
+								);
+							setAttributes( {
+								provider: value,
+								series: keepsSeries ? series : 'daily',
+							} );
+						} }
 						help={ __(
 							'Keys are configured under Settings → NR Stocks.',
 							'nr-stocks'
@@ -311,12 +344,29 @@ export default function Edit( { attributes, setAttributes } ) {
 						) }
 					</p>
 				) }
+				{ !! failedSymbols.length && (
+					<p>
+						{ sprintf(
+							/* translators: %s: comma-separated ticker symbols. */
+							__(
+								'No data for %s. Check the symbol, the provider, and its key under Settings → NR Stocks.',
+								'nr-stocks'
+							),
+							failedSymbols.join( ', ' )
+						) }
+					</p>
+				) }
 				{ previewState === 'ready' && !! previewSeries.length && (
 					<div
 						className="nr-stocks-canvas"
 						// Generated from numeric data only; no user HTML passes through.
 						dangerouslySetInnerHTML={ {
-							__html: renderChartSVG( previewSeries, {} ),
+							__html: renderChartSVG( previewSeries, {
+								labels: {
+									chart: __( 'Price chart', 'nr-stocks' ),
+									noData: __( 'No data', 'nr-stocks' ),
+								},
+							} ),
 						} }
 					/>
 				) }
