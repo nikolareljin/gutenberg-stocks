@@ -4,7 +4,7 @@ Donate link: https://profiles.wordpress.org/nreljin/
 Tags: stocks, charts, forex, crypto, block
 Requires at least: 6.3
 Tested up to: 7.1
-Stable tag: 1.0.2
+Stable tag: 1.0.3
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -57,6 +57,10 @@ Posts using the 0.x `dj/stock-information` block keep their saved charts on the 
 3. Settings screen: providers, API keys, and cache TTLs.
 
 == Changelog ==
+
+= 1.0.3 =
+* The LICENSE file now matches the plugin license: GPLv2 or later.
+* The project moved to https://github.com/nikolareljin/nr-stocks (formerly gutenberg-stocks).
 
 = 1.0.2 =
 * Fixed: on WordPress 6.3 to 6.5 the Stock Chart block loads in the editor again.
