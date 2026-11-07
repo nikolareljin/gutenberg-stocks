@@ -49,11 +49,29 @@ class Block {
 		if ( ! function_exists( 'register_block_type' ) || ! is_readable( $dir . '/block.json' ) ) {
 			return;
 		}
+		self::register_jsx_runtime_fallback();
 		register_block_type(
 			$dir,
 			array(
 				'render_callback' => array( self::class, 'render' ),
 			)
+		);
+	}
+
+	/**
+	 * Registers `react-jsx-runtime` where WordPress does not (before 6.6).
+	 *
+	 * The editor build imports the automatic JSX runtime. Without this handle,
+	 * WordPress 6.3 to 6.5 drop the editor script and the block is missing.
+	 */
+	public static function register_jsx_runtime_fallback() {
+		if ( wp_script_is( 'react-jsx-runtime', 'registered' ) ) {
+			return;
+		}
+		wp_register_script( 'react-jsx-runtime', false, array( 'react' ), NR_STOCKS_VERSION, false );
+		wp_add_inline_script(
+			'react-jsx-runtime',
+			'window.ReactJSXRuntime=window.ReactJSXRuntime||(function(R){function jsx(t,p,k){return R.createElement(t,k===undefined?p:Object.assign({},p,{key:k}));}return{jsx:jsx,jsxs:jsx,Fragment:R.Fragment};})(window.React);'
 		);
 	}
 
