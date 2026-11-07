@@ -446,6 +446,18 @@ class NR_Stocks_Rest_Provider_Test extends WP_UnitTestCase {
 		$this->assertGreaterThan( time() + 3000, $timeout );
 	}
 
+	public function test_invalid_currency_is_a_rejection() {
+		$this->mock_http( '', 422 );
+		$result = Rest_Provider::series( 'frankfurter', 'EUR/VED', 'daily', 30 );
+		$this->assertSame( 'upstream_error', $result['error'] );
+	}
+
+	public function test_unknown_coin_quote_is_a_rejection() {
+		$this->mock_http( '{}' );
+		$result = Rest_Provider::quote( 'coingecko', 'ZZZ/USD' );
+		$this->assertSame( 'upstream_error', $result['error'] );
+	}
+
 	public function test_server_errors_stay_temporary() {
 		$this->mock_http( '', 500 );
 		$result = Rest_Provider::series( 'coingecko', 'NOPE/USD', 'daily', 30 );

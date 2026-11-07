@@ -102,34 +102,49 @@ export function toPercentChange( rows ) {
 }
 
 /**
- * Formats axis values with the shortest style that fits the margin and keeps
- * every tick distinct.
+ * Formats evenly spaced axis values. Precision follows the tick step, so rounding
+ * moves a label by at most a tenth of a step; the style is the first that fits
+ * the margin.
  *
- * @param {number[]} values Tick values.
+ * @param {number[]} values Tick values, evenly spaced.
  * @return {string[]} Labels, in the same order.
  */
 const formatAxisLabels = ( values ) => {
 	const maxLength = 9;
-	const styles = [];
-	for ( let digits = 0; digits <= 6; digits++ ) {
-		styles.push( ( value ) =>
-			value.toLocaleString( 'en-US', {
-				minimumFractionDigits: 0,
-				maximumFractionDigits: digits,
-			} )
+	const step = Math.abs( values[ 1 ] - values[ 0 ] );
+	// Decimals needed for a value measured in `unit`, never below zero.
+	const decimalsFor = ( unit = 1 ) =>
+		Math.max( 0, Math.ceil( -Math.log10( ( 0.2 * step ) / unit ) ) );
+	const plain = ( useGrouping ) => ( value ) => {
+		const digits = Math.min( decimalsFor(), 20 );
+		return value.toLocaleString( 'en-US', {
+			useGrouping,
+			minimumFractionDigits: digits,
+			maximumFractionDigits: digits,
+		} );
+	};
+	const largest = Math.max( ...values.map( Math.abs ) );
+	const compactUnit =
+		[ 1e12, 1e9, 1e6, 1e3 ].find( ( unit ) => largest >= unit ) || 1;
+	const compact = ( value ) => {
+		const digits = Math.min( decimalsFor( compactUnit ), 20 );
+		return value.toLocaleString( 'en-US', {
+			notation: 'compact',
+			minimumFractionDigits: digits,
+			maximumFractionDigits: digits,
+		} );
+	};
+	const exponential = ( value ) =>
+		value.toExponential(
+			Math.min(
+				Math.max(
+					1,
+					Math.ceil( Math.log10( largest / ( 0.2 * step ) ) )
+				),
+				20
+			)
 		);
-	}
-	for ( let digits = 0; digits <= 3; digits++ ) {
-		styles.push( ( value ) =>
-			value.toLocaleString( 'en-US', {
-				notation: 'compact',
-				maximumFractionDigits: digits,
-			} )
-		);
-	}
-	for ( let digits = 1; digits <= 4; digits++ ) {
-		styles.push( ( value ) => value.toExponential( digits ) );
-	}
+	const styles = [ plain( true ), compact, plain( false ), exponential ];
 	for ( const style of styles ) {
 		const labels = values.map( style );
 		if (
@@ -139,7 +154,8 @@ const formatAxisLabels = ( values ) => {
 			return labels;
 		}
 	}
-	return values.map( ( value ) => value.toExponential( 3 ) );
+	// Nothing fits: an accurate label beats a short wrong one.
+	return values.map( plain( false ) );
 };
 
 /**

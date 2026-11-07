@@ -795,7 +795,8 @@ class Rest_Provider {
 		if ( isset( $op['keyed_by'] ) && isset( $params[ $op['keyed_by'] ] ) ) {
 			$k = $params[ $op['keyed_by'] ];
 			if ( ! isset( $decoded[ $k ] ) || ! is_array( $decoded[ $k ] ) ) {
-				return self::error( 'parse_error' );
+				// A valid answer without the requested row: upstream does not know it.
+				return self::error( 'upstream_error' );
 			}
 			$row = $decoded[ $k ];
 		} elseif ( array_key_exists( 'rows', $op ) && null !== $op['rows'] ) {
@@ -970,7 +971,7 @@ class Rest_Provider {
 				return self::error( 'upstream_limit' );
 			}
 			// Upstream rejected this request, for example an unknown symbol.
-			return self::error( 400 === $code || 404 === $code ? 'upstream_error' : 'http_error' );
+			return self::error( in_array( $code, array( 400, 404, 422 ), true ) ? 'upstream_error' : 'http_error' );
 		}
 		return array(
 			'ok'   => true,

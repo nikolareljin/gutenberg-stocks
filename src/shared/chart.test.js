@@ -317,6 +317,48 @@ describe( 'buildChartModel y axis', () => {
 	} );
 } );
 
+describe( 'buildChartModel y axis accuracy', () => {
+	const parseLabel = ( label ) => {
+		const match = label.replace( /,/g, '' ).match( /^(.*?)([KMBT]?)$/ );
+		const scale = { '': 1, K: 1e3, M: 1e6, B: 1e9, T: 1e12 }[ match[ 2 ] ];
+		return Number( match[ 1 ] ) * scale;
+	};
+
+	it.each( [
+		[ 148.3, 151.9 ],
+		[ 149.2, 152.8 ],
+		[ 100.6, 102.4 ],
+		[ 20, 320 ],
+		[ 0.0000123, 0.0000142 ],
+		[ 1.1124, 1.1163 ],
+		[ 16300, 16302 ],
+		[ 60000, 80000 ],
+		[ 100000.1, 100000.4 ],
+		[ 13000000, 15000000 ],
+		[ 1705000000, 1712000000 ],
+		[ 1.21e-9, 1.26e-9 ],
+	] )(
+		'labels stay within a tenth of a tick step: %d to %d',
+		( low, high ) => {
+			const { yTicks } = buildChartModel( [
+				{
+					symbol: 'A',
+					rows: [
+						{ date: '2026-10-01', close: low },
+						{ date: '2026-10-02', close: high },
+					],
+				},
+			] );
+			const step = yTicks[ 1 ].value - yTicks[ 0 ].value;
+			yTicks.forEach( ( tick ) => {
+				expect(
+					Math.abs( parseLabel( tick.label ) - tick.value )
+				).toBeLessThanOrEqual( step * 0.1 * 1.0001 );
+			} );
+		}
+	);
+} );
+
 describe( 'renderChartSVG x axis', () => {
 	it( 'keeps the last label inside the chart', () => {
 		const rows = [
