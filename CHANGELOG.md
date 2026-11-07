@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-11-06
+
 ### Fixed
 
 - Settings page: Save now submits every field. The purge button moved to its own form below the settings, with a success notice.

@@ -4,7 +4,7 @@ Donate link: https://profiles.wordpress.org/nreljin/
 Tags: stocks, charts, forex, crypto, block
 Requires at least: 6.3
 Tested up to: 7.1
-Stable tag: 1.0.0
+Stable tag: 1.0.1
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -58,6 +58,15 @@ Posts using the 0.x `dj/stock-information` block keep their saved charts on the 
 
 == Changelog ==
 
+= 1.0.1 =
+* Fixed: the settings page can save again, and 0.x settings migrate on activation.
+* Fixed: saved 0.x charts load on the frontend, and the quote panel and comparison legend appear.
+* Fixed: CoinGecko, Frankfurter, and Alpha Vantage charts and symbol search return the right data.
+* Fixed: failed refreshes serve the last good data and back off, and temporary failures are not stored by page caches.
+* Changed: the settings page no longer prints saved API keys. Leave a field empty to keep its key.
+* Changed: REST hardening: the cross-origin host list applies to plugin routes, `ttl` is for editors only, logged-out cache misses have a budget, and JSONP is off.
+* Uninstall removes plugin data from every site on a multisite network.
+
 = 1.0.0 =
 * Complete rebuild as NR Stocks for the WordPress.org directory.
 * New Stock Chart block (`nr-stocks/stock-chart`) with multi-symbol comparison, series picker, and quote panel.
@@ -68,6 +77,9 @@ Posts using the 0.x `dj/stock-information` block keep their saved charts on the 
 * Breaking: the 0.x `dj/stock-information` block is retired; saved frontend output keeps rendering, settings migrate automatically.
 
 == Upgrade Notice ==
+
+= 1.0.1 =
+Fixes settings saving, 0.x migration, and provider data, and hardens the REST API. REST clients should review the `ttl`, cross-origin, and JSONP changes in the changelog.
 
 = 1.0.0 =
 Complete rebuild. Re-insert 0.x blocks as the new Stock Chart block; your API token and chart color migrate automatically.
