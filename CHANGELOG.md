@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- License: the `LICENSE` file now carries the GNU GPL version 2 or later, matching the plugin header and `readme.txt`. It said MIT before. `package.json` declares the same license.
+
 ## [1.0.2] - 2026-11-07
 
 ### Fixed
