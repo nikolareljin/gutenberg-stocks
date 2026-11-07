@@ -3,7 +3,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: NR Stocks\n"
-"Report-Msgid-Bugs-To: https://github.com/nikolareljin/gutenberg-stocks/issues\n"
+"Report-Msgid-Bugs-To: https://github.com/nikolareljin/nr-stocks/issues\n"
 "Last-Translator: FULL NAME\n"
 "Language-Team: LANGUAGE\n"
 "MIME-Version: 1.0\n"
@@ -18,7 +18,7 @@ msgid "NR Stocks"
 msgstr ""
 
 #. Plugin URI of the plugin
-msgid "https://github.com/nikolareljin/gutenberg-stocks"
+msgid "https://github.com/nikolareljin/nr-stocks"
 msgstr ""
 
 #. Description of the plugin

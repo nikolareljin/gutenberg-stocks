@@ -3,11 +3,11 @@
   "description": "Stock, forex, and crypto charts for the block editor, with multiple data providers, server-side caching, and a REST API.",
   "type": "wordpress-plugin",
   "license": "GPL-2.0-or-later",
-  "homepage": "https://github.com/nikolareljin/gutenberg-stocks",
+  "homepage": "https://github.com/nikolareljin/nr-stocks",
   "keywords": ["wordpress", "plugin", "stocks", "charts", "forex", "crypto", "gutenberg"],
   "support": {
-    "issues": "https://github.com/nikolareljin/gutenberg-stocks/issues",
-    "source": "https://github.com/nikolareljin/gutenberg-stocks"
+    "issues": "https://github.com/nikolareljin/nr-stocks/issues",
+    "source": "https://github.com/nikolareljin/nr-stocks"
   },
   "authors": [
     {

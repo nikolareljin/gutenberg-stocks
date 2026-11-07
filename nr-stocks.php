@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name:       NR Stocks
- * Plugin URI:        https://github.com/nikolareljin/gutenberg-stocks
+ * Plugin URI:        https://github.com/nikolareljin/nr-stocks
  * Description:       Stock, forex, and crypto charts for the block editor. Multiple data providers, server-side caching, shortcode, and a headless-ready REST API.
  * Author:            Nik Reljin
  * Author URI:        https://profiles.wordpress.org/nreljin/

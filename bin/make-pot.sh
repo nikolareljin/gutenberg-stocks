@@ -24,7 +24,7 @@ docker run --rm \
   --slug=nr-stocks \
   --no-location \
   --exclude=".git,.github,.build,build,dist,vendor,test,tests,node_modules,bin,scripts,docs" \
-  --headers='{"Report-Msgid-Bugs-To":"https://github.com/nikolareljin/gutenberg-stocks/issues"}'
+  --headers='{"Report-Msgid-Bugs-To":"https://github.com/nikolareljin/nr-stocks/issues"}'
 
 # Email-shaped gettext placeholders trip secret scanners; the copyright year,
 # plugin version, timestamp, and generator version would change the file with no

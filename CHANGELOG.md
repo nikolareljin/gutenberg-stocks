@@ -6,6 +6,10 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- The repository is renamed from `gutenberg-stocks` to `nr-stocks`, matching the plugin slug. The plugin URI, translation bug-report URL, license notice, Composer metadata, README and project site point to the new URLs. The project site moves to <https://nikolareljin.github.io/nr-stocks/>.
+
+### Changed
+
 - License: the `LICENSE` file now carries the GNU GPL version 2 or later, matching the plugin header and `readme.txt`. It said MIT before. `package.json` declares the same license.
 
 ## [1.0.2] - 2026-11-07
