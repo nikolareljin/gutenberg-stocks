@@ -246,8 +246,8 @@ export function renderChartSVG( seriesList, opts = {} ) {
 		.join( '' );
 	const xLabels = model.xTicks
 		.map(
-			( tick ) =>
-				`<text x="${ tick.x }" y="${ height - margin.top - margin.bottom + 18 }" text-anchor="middle" font-size="11" fill="#666">${ escapeXml( tick.label ) }</text>`
+			( tick, index ) =>
+				`<text x="${ tick.x }" y="${ height - margin.top - margin.bottom + 18 }" text-anchor="${ index > 0 && index === model.xTicks.length - 1 ? 'end' : 'middle' }" font-size="11" fill="#666">${ escapeXml( tick.label ) }</text>`
 		)
 		.join( '' );
 	const series = model.paths

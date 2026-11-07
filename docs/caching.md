@@ -30,8 +30,8 @@ endpoint (not recommended in production).
   its own TTL, so a long per-block TTL does not freeze other charts. An entry
   past a caller's TTL but not yet expired is served when a refresh fails, is
   over budget, or is still in progress, and a short-TTL refresh never shortens
-  the entry's lifetime.
-- A page where every symbol failed tells page caches not to store it.
+  the entry's lifetime. After a failed refresh, upstream is left alone for 60s.
+- A page holding a temporary failure tells page caches not to store it.
 - Errors cached 60s (negative cache), so a dead upstream degrades instead
   of melting quotas.
 - Purge: the settings button, saving settings, `wp nr-stocks cache purge`,

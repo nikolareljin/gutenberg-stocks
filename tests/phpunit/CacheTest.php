@@ -343,6 +343,54 @@ class NR_Stocks_Cache_Test extends WP_UnitTestCase {
 		$this->assertFalse( get_transient( 'nrstx_phpunit_keep_lock' ) );
 	}
 
+	public function test_failed_refresh_backs_off_upstream() {
+		$this->seed_stale_entry( 'nrstx_phpunit_backoff' );
+		$calls   = 0;
+		$fetcher = function () use ( &$calls ) {
+			++$calls;
+			return array(
+				'ok'    => false,
+				'error' => 'upstream_limit',
+			);
+		};
+		Cache::get_or_fetch( 'nrstx_phpunit_backoff', 300, $fetcher );
+		$second = Cache::get_or_fetch( 'nrstx_phpunit_backoff', 300, $fetcher );
+		$this->assertSame( 1, $calls );
+		$this->assertSame( array( 'old' ), $second['data'] );
+
+		// Once a refresh succeeds, the entry is fresh and no longer stale.
+		delete_transient( 'nrstx_phpunit_backoff_retry' );
+		$fresh = Cache::get_or_fetch(
+			'nrstx_phpunit_backoff',
+			300,
+			function () {
+				return array(
+					'ok'   => true,
+					'data' => array( 'new' ),
+				);
+			}
+		);
+		$this->assertSame( array( 'new' ), $fresh['data'] );
+	}
+
+	public function test_stale_entry_is_served_at_once_while_another_request_refreshes() {
+		$this->seed_stale_entry( 'nrstx_phpunit_inflight' );
+		set_transient( 'nrstx_phpunit_inflight_lock', 1, 15 );
+		$started = microtime( true );
+		$result  = Cache::get_or_fetch(
+			'nrstx_phpunit_inflight',
+			300,
+			function () {
+				return array(
+					'ok'   => true,
+					'data' => array( 'must-not-fetch' ),
+				);
+			}
+		);
+		$this->assertSame( array( 'old' ), $result['data'] );
+		$this->assertLessThan( 1, microtime( true ) - $started );
+	}
+
 	public function test_budget_refusal_serves_the_valid_entry() {
 		$this->seed_stale_entry( 'nrstx_phpunit_budget' );
 		Cache::set_fetch_guard( '__return_false' );

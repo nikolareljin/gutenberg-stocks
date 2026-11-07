@@ -234,6 +234,21 @@ describe( 'renderQuotesHTML', () => {
 	} );
 } );
 
+describe( 'renderChartSVG x axis', () => {
+	it( 'keeps the last label inside the chart', () => {
+		const rows = [
+			{ date: '2026-10-01', close: 1 },
+			{ date: '2026-10-15', close: 2 },
+			{ date: '2026-10-30', close: 3 },
+		];
+		const html = renderChartSVG( [ { symbol: 'A', rows } ] );
+		const anchors = [
+			...html.matchAll( /text-anchor="(\w+)"[^>]*fill="#666">Oct/g ),
+		].map( ( match ) => match[ 1 ] );
+		expect( anchors ).toEqual( [ 'middle', 'middle', 'end' ] );
+	} );
+} );
+
 describe( 'renderChartSVG labels', () => {
 	it( 'uses translated labels and escapes them', () => {
 		const html = renderChartSVG( [], {

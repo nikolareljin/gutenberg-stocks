@@ -228,8 +228,16 @@ class Cache {
 		}
 		// Past this caller's TTL but still valid: better than any failure below.
 		$stale = $hit;
+		if ( null !== $stale && false !== get_transient( $key . '_retry' ) ) {
+			// The last refresh failed moments ago; do not hit upstream again yet.
+			return $stale;
+		}
 
 		if ( ! self::acquire_lock( $key ) ) {
+			if ( null !== $stale ) {
+				// Someone is already refreshing and there is data to serve now.
+				return $stale;
+			}
 			// Another request owns the fetch: wait for its result instead of
 			// adding a second upstream call for the same key.
 			/**
@@ -257,7 +265,7 @@ class Cache {
 					break;
 				}
 			}
-			return null !== $stale ? $stale : self::failure( 'busy' );
+			return self::failure( 'busy' );
 		}
 
 		if ( ! self::fetch_allowed() ) {
@@ -271,7 +279,9 @@ class Cache {
 		// arriving in between cannot start a second fetch.
 		if ( ! is_array( $result ) || empty( $result['ok'] ) ) {
 			if ( null !== $stale ) {
-				// Keep the valid entry instead of replacing it with an error.
+				// Keep the valid entry instead of replacing it with an error, and
+				// back off like the negative cache does.
+				set_transient( $key . '_retry', 1, self::NEGATIVE_TTL );
 				self::release_lock( $key );
 				return $stale;
 			}

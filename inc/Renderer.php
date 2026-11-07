@@ -69,13 +69,14 @@ class Renderer {
 			$symbols[ $symbol ] = $entry;
 		}
 
-		if ( count( $symbols ) === $failed ) {
-			foreach ( $symbols as $entry ) {
-				if ( self::is_temporary_error( $entry['error'] ) ) {
-					self::prevent_page_caching();
-					break;
-				}
+		foreach ( $symbols as $entry ) {
+			if ( '' !== $entry['error'] && self::is_temporary_error( $entry['error'] ) ) {
+				self::prevent_page_caching();
+				break;
 			}
+		}
+
+		if ( count( $symbols ) === $failed ) {
 			return sprintf(
 				'<div class="nr-stocks nr-stocks-error" data-error="%s"><p>%s</p></div>',
 				esc_attr( reset( $symbols )['error'] ),
@@ -137,7 +138,7 @@ class Renderer {
 	}
 
 	/**
-	 * Keeps a temporary failure notice out of page caches.
+	 * Keeps a page holding a temporary failure out of page caches.
 	 */
 	protected static function prevent_page_caching() {
 		if ( ! defined( 'DONOTCACHEPAGE' ) ) {

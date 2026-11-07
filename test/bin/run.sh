@@ -96,7 +96,7 @@ info "Checking REST providers endpoint…"
 PROVIDERS_JSON="$(curl -fsSL "${BASE_URL}/wp-json/nr-stocks/v1/providers")"
 PROVIDERS_TYPE="$(curl -fsSL -D - -o /dev/null "${BASE_URL}/wp-json/nr-stocks/v1/providers" | grep -ai '^content-type:' || true)"
 check "providers answer JSON" grep -qi 'application/json' <<<"${PROVIDERS_TYPE}"
-check "providers lists five entries" grep -q '"frankfurter"' <<<"${PROVIDERS_JSON}"
+check "providers lists five entries" test "$(grep -o '"id":"' <<<"${PROVIDERS_JSON}" | wc -l)" -eq 5
 if grep -qi '"hosts"\|apikey\|api_key' <<<"${PROVIDERS_JSON}"; then
   err "FAIL: providers leak key material"
   fail=1
