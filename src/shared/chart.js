@@ -318,7 +318,10 @@ export function renderQuotesHTML( quotes ) {
 			const currency = quote.currency
 				? ` ${ escapeXml( quote.currency ) }`
 				: '';
-			return `<li class="nr-stocks-quote"><span class="nr-stocks-quote__symbol">${ escapeXml( symbol ) }</span> <span class="nr-stocks-quote__price">${ formatQuoteNumber( quote.price ) }${ currency }</span> ${ change }</li>`;
+			const date = quote.date
+				? ` <span class="nr-stocks-quote__date">${ escapeXml( String( quote.date ).slice( 0, 10 ) ) }</span>`
+				: '';
+			return `<li class="nr-stocks-quote"><span class="nr-stocks-quote__symbol">${ escapeXml( symbol ) }</span> <span class="nr-stocks-quote__price">${ formatQuoteNumber( quote.price ) }${ currency }</span> ${ change }${ date }</li>`;
 		} )
 		.join( '' );
 	return items ? `<ul class="nr-stocks-quotes">${ items }</ul>` : '';

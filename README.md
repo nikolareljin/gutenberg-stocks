@@ -84,6 +84,8 @@ test stack (`NRSTX_TEST_PORT`, `NRSTX_WP_VERSION`).
 4. The **Deploy to WordPress.org** workflow runs after the GitHub Release
    and pushes the tag to SVN (needs `SVN_USERNAME` / `SVN_PASSWORD` secrets;
    until the SVN repo exists it verifies the payload and skips the upload).
+   Running **Create GitHub Release** by hand from a branch publishes the release
+   but skips the deploy, so select the tag as the ref.
    A tag released before the repo existed needs one manual run: dispatch the
    workflow with that tag as the ref. Tags older than this workflow's
    `workflow_dispatch` trigger cannot be re-run, so cut a new release instead.

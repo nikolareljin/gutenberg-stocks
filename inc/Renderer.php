@@ -150,6 +150,10 @@ class Renderer {
 		if ( ! headers_sent() ) {
 			nocache_headers();
 		}
+		/**
+		 * Fires when a temporary data failure keeps the page out of page caches.
+		 */
+		do_action( 'nr_stocks_page_uncacheable' );
 	}
 
 	/**

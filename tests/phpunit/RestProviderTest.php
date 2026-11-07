@@ -79,6 +79,7 @@ class NR_Stocks_Rest_Provider_Test extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'function=DIGITAL_CURRENCY_DAILY', $this->mock_calls[4] );
 		$this->assertStringContainsString( 'symbol=BTC', $this->mock_calls[4] );
 		$this->assertStringContainsString( 'market=USD', $this->mock_calls[4] );
+		$this->assertStringContainsString( 'symbol=BTC&', $this->mock_calls[4] );
 	}
 
 	public function test_av_quote_strips_percent() {
@@ -165,7 +166,15 @@ class NR_Stocks_Rest_Provider_Test extends WP_UnitTestCase {
 		$this->mock_http( self::fixture( 'frankfurter_currencies.json' ) );
 		$search = Rest_Provider::search( 'frankfurter', 'dollar' );
 		$this->assertTrue( $search['ok'] );
-		$this->assertSame( 'USD', $search['data'][0]['symbol'] );
+		$this->assertSame( 'USD/EUR', $search['data'][0]['symbol'] );
+
+		$this->mock_http( self::fixture( 'frankfurter_currencies.json' ) );
+		$euro = Rest_Provider::search( 'frankfurter', 'euro' );
+		$this->assertSame( 'EUR/USD', $euro['data'][0]['symbol'] );
+
+		$this->mock_http( self::fixture( 'frankfurter_currencies.json' ) );
+		$coins = Rest_Provider::search( 'frankfurter', 'coin' );
+		$this->assertSame( array(), $coins['data'] );
 	}
 
 	public function test_coingecko_series_quote_and_local_search() {
@@ -173,7 +182,7 @@ class NR_Stocks_Rest_Provider_Test extends WP_UnitTestCase {
 		$result = Rest_Provider::series( 'coingecko', 'BTC/USD', 'daily', 30 );
 		$this->assertTrue( $result['ok'] );
 		$this->assertCount( 3, $result['data'] );
-		$this->assertSame( '2026-11-03 16:00:00', $result['data'][0]['date'] );
+		$this->assertSame( '2026-11-03', $result['data'][0]['date'] );
 		$this->assertSame( 77623.43, $result['data'][0]['close'] );
 		$this->assertStringContainsString( '/coins/bitcoin/market_chart', $this->mock_calls[0] );
 		$this->assertStringContainsString( 'vs_currency=usd', $this->mock_calls[0] );
@@ -283,6 +292,19 @@ class NR_Stocks_Rest_Provider_Test extends WP_UnitTestCase {
 		$this->assertGreaterThan( 1, count( $long['data'] ) );
 	}
 
+	public function test_pairs_outside_the_fiat_list_reach_forex_providers() {
+		$this->mock_http( self::fixture( 'frankfurter.json' ) );
+		$listed = Rest_Provider::series( 'frankfurter', 'EUR/RON', 'daily', 30 );
+		$this->assertTrue( $listed['ok'] );
+		$this->assertSame( 'forex', $listed['meta']['asset'] );
+
+		$this->mock_http( self::fixture( 'frankfurter.json' ) );
+		$unlisted = Rest_Provider::series( 'frankfurter', 'EUR/XAF', 'daily', 30 );
+		$this->assertTrue( $unlisted['ok'] );
+		$this->assertSame( 'forex', $unlisted['meta']['asset'] );
+		$this->assertStringContainsString( 'quotes=XAF', end( $this->mock_calls ) );
+	}
+
 	public function test_coingecko_daily_series_has_one_row_per_day() {
 		$start  = 1793721600000;
 		$prices = array();
@@ -296,6 +318,21 @@ class NR_Stocks_Rest_Provider_Test extends WP_UnitTestCase {
 		$last  = strtotime( $result['data'][29]['date'] );
 		$this->assertGreaterThan( 28 * DAY_IN_SECONDS, $last - $first );
 		$this->assertSame( (float) ( 100 + 24 * 40 - 1 ), (float) $result['data'][29]['close'] );
+	}
+
+	public function test_coingecko_midnight_point_closes_the_previous_day() {
+		$midnight = gmmktime( 0, 0, 0, 11, 5, 2026 ) * 1000;
+		$prices   = array(
+			array( $midnight - 3600000, 10 ),
+			array( $midnight, 20 ),
+			array( $midnight + 3600000, 30 ),
+		);
+		$this->mock_http( wp_json_encode( array( 'prices' => $prices ) ) );
+		$rows = Rest_Provider::series( 'coingecko', 'BTC/USD', 'daily', 30 )['data'];
+		$this->assertSame( '2026-11-04', $rows[0]['date'] );
+		$this->assertSame( 20, (int) $rows[0]['close'] );
+		$this->assertSame( '2026-11-05', $rows[1]['date'] );
+		$this->assertSame( 30, (int) $rows[1]['close'] );
 	}
 
 	/**

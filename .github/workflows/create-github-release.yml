@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: Version tag to release (for example, 0.1.1)
+        description: Version tag to release (for example, 0.1.1). Run this from that tag, or deploy is skipped.
         required: true
         type: string
 

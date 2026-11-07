@@ -39,7 +39,7 @@ Your API keys stay on the server: the browser only talks to your own site, which
 Frankfurter (forex), CoinGecko (crypto), and the ECB work without a key. Alpha Vantage and Twelve Data need free keys from their sites, entered under Settings → NR Stocks.
 
 = What are the free-tier limits? =
-Alpha Vantage free allows 25 requests per day. Twelve Data free allows 8 credits per minute and 800 per day, for internal/non-display use — public display needs a paid plan. The plugin's server-side cache keeps upstream calls low; pick a longer TTL on busy sites.
+Alpha Vantage free allows 25 requests per day and returns the latest 100 points of a series. Twelve Data free allows 8 credits per minute and 800 per day, for internal/non-display use — public display needs a paid plan. The plugin's server-side cache keeps upstream calls low; pick a longer TTL on busy sites.
 
 = How does caching work? =
 Responses are cached per provider, endpoint, and parameters. Defaults are 5 minutes for time series, 1 minute for quotes, and 1 hour for symbol search; every value is adjustable, and high-traffic sites benefit from a persistent object cache (Redis/Memcached), which the plugin detects automatically.

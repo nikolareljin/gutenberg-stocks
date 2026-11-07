@@ -70,40 +70,41 @@ class NR_Stocks_Shortcode_Test extends WP_UnitTestCase {
 		$this->assertGreaterThan( has_filter( 'the_content', 'do_blocks' ), $priority );
 	}
 
-	/**
-	 * Runs alone because the constant cannot be undefined.
-	 *
-	 * @runInSeparateProcess
-	 * @preserveGlobalState disabled
-	 */
 	public function test_temporary_failure_marks_the_page_uncacheable() {
+		$before = did_action( 'nr_stocks_page_uncacheable' );
 		$this->mock_http( '', 500 );
 		do_shortcode( '[nr-stocks symbols="IBM" provider="alphavantage"]' );
+		$this->assertSame( $before + 1, did_action( 'nr_stocks_page_uncacheable' ) );
 		$this->assertTrue( defined( 'DONOTCACHEPAGE' ) );
 	}
 
-	/**
-	 * Runs alone because the constant cannot be undefined.
-	 *
-	 * @runInSeparateProcess
-	 * @preserveGlobalState disabled
-	 */
+	public function test_partial_failure_marks_the_page_uncacheable() {
+		$before = did_action( 'nr_stocks_page_uncacheable' );
+		$this->mock_http( self::fixture( 'av_daily.csv' ) );
+		$this->mock_http( '', 500 );
+		do_shortcode( '[nr-stocks symbols="IBM,MSFT" provider="alphavantage"]' );
+		$this->assertGreaterThan( $before, did_action( 'nr_stocks_page_uncacheable' ) );
+	}
+
 	public function test_temporary_quote_failure_marks_the_page_uncacheable() {
+		$before = did_action( 'nr_stocks_page_uncacheable' );
 		$this->mock_http( self::fixture( 'av_daily.csv' ) );
 		$this->mock_http( self::fixture( 'av_note_multiline.json' ) );
 		do_shortcode( '[nr-stocks symbols="IBM" provider="alphavantage" quote="1"]' );
-		$this->assertTrue( defined( 'DONOTCACHEPAGE' ) );
+		$this->assertSame( $before + 1, did_action( 'nr_stocks_page_uncacheable' ) );
 	}
 
-	/**
-	 * Runs alone because the constant cannot be undefined.
-	 *
-	 * @runInSeparateProcess
-	 * @preserveGlobalState disabled
-	 */
 	public function test_permanent_failure_leaves_page_caching_alone() {
+		$before = did_action( 'nr_stocks_page_uncacheable' );
 		do_shortcode( '[nr-stocks symbols="AAPL" provider="frankfurter"]' );
-		$this->assertFalse( defined( 'DONOTCACHEPAGE' ) );
+		$this->assertSame( $before, did_action( 'nr_stocks_page_uncacheable' ) );
+	}
+
+	public function test_success_leaves_page_caching_alone() {
+		$before = did_action( 'nr_stocks_page_uncacheable' );
+		$this->mock_http( self::fixture( 'av_daily.csv' ) );
+		do_shortcode( '[nr-stocks symbols="IBM" provider="alphavantage"]' );
+		$this->assertSame( $before, did_action( 'nr_stocks_page_uncacheable' ) );
 	}
 
 	public function test_only_temporary_errors_are_kept_out_of_page_caches() {

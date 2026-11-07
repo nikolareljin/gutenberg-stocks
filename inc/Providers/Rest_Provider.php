@@ -65,6 +65,25 @@ class Rest_Provider {
 		'AED',
 		'SAR',
 		'RUB',
+		'RON',
+		'BGN',
+		'ISK',
+		'UAH',
+		'EGP',
+		'VND',
+		'CLP',
+		'COP',
+		'PEN',
+		'ARS',
+		'PKR',
+		'NGN',
+		'KES',
+		'MAD',
+		'QAR',
+		'KWD',
+		'BHD',
+		'OMR',
+		'JOD',
 	);
 
 	/**
@@ -104,6 +123,13 @@ class Rest_Provider {
 		}
 		$asset = self::detect_asset( $symbol );
 		$op    = self::find_series_op( $config, $series, $asset );
+		if ( null === $op && 'crypto' === $asset ) {
+			// A pair outside the fiat list may still be served by a forex provider.
+			$op = self::find_series_op( $config, $series, 'forex' );
+			if ( null !== $op ) {
+				$asset = 'forex';
+			}
+		}
 		if ( null === $op ) {
 			return self::error( 'unsupported_series' );
 		}
@@ -701,7 +727,15 @@ class Rest_Provider {
 			// the list-of-objects and code->name-map shapes, then filter.
 			$table = array();
 			if ( self::is_list( $decoded ) ) {
-				$table = $decoded;
+				foreach ( $decoded as $row ) {
+					if ( ! is_array( $row ) || ( isset( $row['type'] ) && 'crypto' === $row['type'] ) ) {
+						continue;
+					}
+					if ( ! isset( $row['code'] ) && isset( $row['iso_code'] ) ) {
+						$row['code'] = $row['iso_code'];
+					}
+					$table[] = $row;
+				}
 			} else {
 				foreach ( $decoded as $code => $name ) {
 					$table[] = array(
@@ -710,9 +744,17 @@ class Rest_Provider {
 					);
 				}
 			}
+			$matches = self::filter_local( $table, $map, $query );
+			if ( isset( $op['pair_with'] ) && is_array( $op['pair_with'] ) ) {
+				foreach ( $matches as &$match ) {
+					$quote           = $match['symbol'] === $op['pair_with'][0] ? $op['pair_with'][1] : $op['pair_with'][0];
+					$match['symbol'] = $match['symbol'] . '/' . $quote;
+				}
+				unset( $match );
+			}
 			return array(
 				'ok'   => true,
-				'data' => self::filter_local( $table, $map, $query ),
+				'data' => $matches,
 			);
 		}
 
@@ -921,15 +963,20 @@ class Rest_Provider {
 			if ( $ms ) {
 				$ts = (int) floor( $ts / 1000 );
 			}
-			$row = array(
-				'date' => gmdate( 'Y-m-d H:i:s', $ts ),
-				$field => (float) $pair[1],
-			);
 			if ( ! empty( $spec['per_day'] ) ) {
-				// Input is oldest first, so each day keeps its latest price.
-				$rows[ gmdate( 'Y-m-d', $ts ) ] = $row;
+				// Input is oldest first, so each day keeps its latest price. A
+				// 00:00 point is the previous day's close, which is how longer
+				// ranges report every day.
+				$day          = gmdate( 'Y-m-d', $ts - 1 );
+				$rows[ $day ] = array(
+					'date' => $day,
+					$field => (float) $pair[1],
+				);
 			} else {
-				$rows[] = $row;
+				$rows[] = array(
+					'date' => gmdate( 'Y-m-d H:i:s', $ts ),
+					$field => (float) $pair[1],
+				);
 			}
 		}
 		return array_values( $rows );

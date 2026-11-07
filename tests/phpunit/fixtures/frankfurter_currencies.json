@@ -1,5 +1,30 @@
 [
-  {"code": "USD", "name": "US Dollar"},
-  {"code": "EUR", "name": "Euro"},
-  {"code": "GBP", "name": "British Pound"}
+ {
+  "iso_code": "AAVE",
+  "iso_numeric": null,
+  "name": "Aave",
+  "symbol": "AAVE",
+  "type": "crypto"
+ },
+ {
+  "iso_code": "USD",
+  "iso_numeric": "840",
+  "name": "United States Dollar",
+  "symbol": "$",
+  "type": "fiat"
+ },
+ {
+  "iso_code": "EUR",
+  "iso_numeric": "978",
+  "name": "Euro",
+  "symbol": "E",
+  "type": "fiat"
+ },
+ {
+  "iso_code": "USDC",
+  "iso_numeric": null,
+  "name": "USD Coin",
+  "symbol": "USDC",
+  "type": "crypto"
+ }
 ]

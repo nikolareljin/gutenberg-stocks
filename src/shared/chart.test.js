@@ -222,6 +222,16 @@ describe( 'renderQuotesHTML', () => {
 		expect( html ).not.toContain( '%' );
 	} );
 
+	it( 'shows the date of the price', () => {
+		const html = renderQuotesHTML( [
+			{
+				symbol: 'A',
+				quote: { price: 1, date: '2022-03-01 10:00:00' },
+			},
+		] );
+		expect( html ).toContain( '>2022-03-01<' );
+	} );
+
 	it( 'escapes upstream text', () => {
 		const html = renderQuotesHTML( [
 			{
