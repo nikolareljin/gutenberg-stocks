@@ -270,6 +270,25 @@ class NR_Stocks_Rest_Provider_Test extends WP_UnitTestCase {
 		$this->assertSame( 'http_error', $quote['error'] );
 	}
 
+	public function test_av_notices_are_limits_whatever_their_wording() {
+		$notices = array(
+			'{"Information": "Thank you for using Alpha Vantage! Please spread out your calls to no more than 2 requests per second."}',
+			"{\n    \"Information\": \"Burst pattern detected. Please try again shortly.\"\n}",
+			'{"Note": "Please consider spreading out your calls."}',
+		);
+		foreach ( $notices as $index => $body ) {
+			$this->mock_http( $body );
+			$result = Rest_Provider::series( 'alphavantage', 'IBM' . $index, 'daily', 30 );
+			$this->assertSame( 'upstream_limit', $result['error'], $body );
+		}
+	}
+
+	public function test_empty_json_on_a_csv_call_is_not_a_rejection() {
+		$this->mock_http( '{}' );
+		$result = Rest_Provider::series( 'alphavantage', 'IBM', 'daily', 30 );
+		$this->assertSame( 'parse_error', $result['error'] );
+	}
+
 	public function test_multiline_av_error_message_is_an_upstream_error() {
 		$this->mock_http( "{\n    \"Error Message\": \"Invalid API call.\"\n}" );
 		$result = Rest_Provider::series( 'alphavantage', 'IBM', 'daily', 30 );

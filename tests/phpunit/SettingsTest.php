@@ -122,6 +122,15 @@ class NR_Stocks_Settings_Test extends WP_UnitTestCase {
 		$this->assertSame( 'MYKEY', $key );
 	}
 
+	public function test_key_of_an_inactive_provider_survives_saving() {
+		$saved                 = Settings::defaults();
+		$saved['keys']['acme'] = 'ACMEKEY';
+		update_option( NR_STOCKS_OPTION, $saved );
+		$settings = new Settings();
+		$clean    = $settings->sanitize( array( 'keys' => array( 'alphavantage' => '' ) ) );
+		$this->assertSame( 'ACMEKEY', $clean['keys']['acme'] );
+	}
+
 	public function test_sanitize_is_stable_when_run_twice() {
 		$settings = new Settings();
 		$first    = $settings->sanitize( array( 'rest_cors_origins' => "app.example.com\nfoo.test" ) );

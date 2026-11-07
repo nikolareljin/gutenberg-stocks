@@ -1205,7 +1205,9 @@ class Rest_Provider {
 		foreach ( $op['error_paths'] as $path ) {
 			$value = self::dot_get( $decoded, $path );
 			if ( is_string( $value ) && '' !== $value ) {
-				if ( false !== stripos( $value, 'rate' ) || false !== stripos( $value, 'limit' ) || false !== stripos( $value, 'premium' ) ) {
+				// Alpha Vantage sends quota and burst notices under these keys, in
+				// wording that changes. Only "Error Message" rejects a request.
+				if ( 'Note' === $path || 'Information' === $path || self::looks_like_limit( $value ) ) {
 					return 'upstream_limit';
 				}
 				return 'upstream_error';
@@ -1221,11 +1223,15 @@ class Rest_Provider {
 	 * @return array Error envelope.
 	 */
 	protected static function csv_failure( $body ) {
-		if ( self::looks_like_limit( $body ) ) {
-			return self::error( 'upstream_limit' );
+		$decoded = json_decode( $body, true );
+		if ( is_array( $decoded ) ) {
+			$error = self::find_upstream_error(
+				array( 'error_paths' => array( 'Note', 'Information', 'Error Message' ) ),
+				$decoded
+			);
+			return self::error( null !== $error ? $error : 'parse_error' );
 		}
-		$first = substr( ltrim( $body ), 0, 1 );
-		return self::error( '{' === $first || '[' === $first ? 'upstream_error' : 'parse_error' );
+		return self::error( self::looks_like_limit( $body ) ? 'upstream_limit' : 'parse_error' );
 	}
 
 	/**
@@ -1235,7 +1241,7 @@ class Rest_Provider {
 	 * @return bool
 	 */
 	protected static function looks_like_limit( $body ) {
-		return (bool) preg_match( '/rate|limit|premium|call frequency/i', substr( $body, 0, 500 ) );
+		return (bool) preg_match( '/rate|limit|premium|call frequency|credit|per second|per minute/i', substr( $body, 0, 500 ) );
 	}
 
 	/**

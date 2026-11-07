@@ -102,32 +102,44 @@ export function toPercentChange( rows ) {
 }
 
 /**
- * Formats an axis value with enough digits to tell neighboring ticks apart.
+ * Formats axis values with the shortest style that fits the margin and keeps
+ * every tick distinct.
  *
- * @param {number} value Tick value.
- * @param {number} span  Distance between the axis limits.
- * @return {string} Label.
+ * @param {number[]} values Tick values.
+ * @return {string[]} Labels, in the same order.
  */
-const formatAxisNumber = ( value, span ) => {
-	// Long decimals would overflow the axis margin, so tiny values use exponents.
-	if ( value !== 0 && Math.abs( value ) < 0.001 ) {
-		const needed = Math.ceil( Math.log10( Math.abs( value ) / span ) ) + 1;
-		return value.toExponential( Math.min( Math.max( needed, 1 ), 3 ) );
+const formatAxisLabels = ( values ) => {
+	const maxLength = 9;
+	const styles = [];
+	for ( let digits = 0; digits <= 6; digits++ ) {
+		styles.push( ( value ) =>
+			value.toLocaleString( 'en-US', {
+				minimumFractionDigits: 0,
+				maximumFractionDigits: digits,
+			} )
+		);
 	}
-	// The margin fits about nine characters, so large values drop their decimals.
-	if ( Math.abs( value ) >= 1000000 ) {
-		return value.toLocaleString( 'en-US', {
-			notation: 'compact',
-			maximumFractionDigits: 2,
-		} );
+	for ( let digits = 0; digits <= 3; digits++ ) {
+		styles.push( ( value ) =>
+			value.toLocaleString( 'en-US', {
+				notation: 'compact',
+				maximumFractionDigits: digits,
+			} )
+		);
 	}
-	if ( Math.abs( value ) >= 10000 ) {
-		return value.toLocaleString( 'en-US', { maximumFractionDigits: 0 } );
+	for ( let digits = 1; digits <= 4; digits++ ) {
+		styles.push( ( value ) => value.toExponential( digits ) );
 	}
-	const digits = Math.max( 2, Math.ceil( 2 - Math.log10( span || 1 ) ) );
-	return value.toLocaleString( 'en-US', {
-		maximumFractionDigits: Math.min( digits, 6 ),
-	} );
+	for ( const style of styles ) {
+		const labels = values.map( style );
+		if (
+			new Set( labels ).size === labels.length &&
+			labels.every( ( label ) => label.length <= maxLength )
+		) {
+			return labels;
+		}
+	}
+	return values.map( ( value ) => value.toExponential( 3 ) );
 };
 
 /**
@@ -219,16 +231,17 @@ export function buildChartModel( seriesList, opts = {} ) {
 		last: entry.rows[ entry.rows.length - 1 ],
 	} ) );
 
-	const yTicks = [ 0, 1, 2, 3 ].map( ( step ) => {
-		const value = min + ( ( max - min ) * step ) / 3;
-		return {
-			value,
-			y: yScale( value ),
-			label: normalized
-				? `${ value >= 0 ? '+' : '' }${ value.toFixed( 2 ) }%`
-				: formatAxisNumber( value, max - min ),
-		};
-	} );
+	const tickValues = [ 0, 1, 2, 3 ].map(
+		( step ) => min + ( ( max - min ) * step ) / 3
+	);
+	const plainLabels = formatAxisLabels( tickValues );
+	const yTicks = tickValues.map( ( value, index ) => ( {
+		value,
+		y: yScale( value ),
+		label: normalized
+			? `${ value >= 0 ? '+' : '' }${ value.toFixed( 2 ) }%`
+			: plainLabels[ index ],
+	} ) );
 
 	const spanMs = Math.max( ...allDates ) - Math.min( ...allDates );
 	const intraday = spanMs < 3 * 86400000;

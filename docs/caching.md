@@ -36,8 +36,8 @@ endpoint (not recommended in production).
 - A page holding a temporary failure tells page caches not to store it. A
   request upstream rejected, such as a delisted symbol, is not temporary: it is
   remembered for an hour and does not affect page caching.
-- Errors cached 60s (negative cache), so a dead upstream degrades instead
-  of melting quotas.
+- Temporary errors are cached 60s (negative cache), so a dead upstream degrades
+  instead of melting quotas.
 - Purge: the settings button, saving settings, `wp nr-stocks cache purge`,
   or `Cache::purge_all()` (key index + options-table fallback; never a
   global object-cache flush).
